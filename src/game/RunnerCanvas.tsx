@@ -92,8 +92,6 @@ interface RunnerCanvasProps {
   soundEnabled?: boolean;
   isPaused?: boolean;
   onRequestRestart?: () => void;
-  /** When true: no obstacles, no bride chase, no game-over. Used as menu background. */
-  demoMode?: boolean;
 }
 
 export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({
@@ -101,7 +99,6 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({
   onGameOver,
   soundEnabled = true,
   isPaused = false,
-  demoMode = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -121,12 +118,6 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({
   useEffect(() => {
     debugRef.current = debugParams;
   }, [debugParams]);
-
-  // Keep demoMode accessible inside the game loop without stale closure
-  const demoModeRef = useRef(demoMode);
-  useEffect(() => {
-    demoModeRef.current = demoMode;
-  }, [demoMode]);
 
   useEffect(() => {
     sound.enabled = soundEnabled;
@@ -425,163 +416,155 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({
           const playerBox = getPlayerHitbox(s.playerState, physicsConfig);
 
           // 3. ACTUALIZAR NOVIA (Mecánica estilo Power Pamplona)
-          if (!demoModeRef.current) {
-            // La novia se aleja gradualmente si corres bien, pero se acerca cuando te chocas
-            const idealBrideX = 45;
-            if (s.brideX > idealBrideX) {
-              s.brideX = Math.max(idealBrideX, s.brideX - dt * 20);
-            }
-            // Si la novia te alcanza: GAME OVER
-            if (s.brideX >= PLAYER_X - 42 && !debugRef.current.godMode) {
-              s.isGameOver = true;
-              sound.playHit();
-              sound.playGameOver();
-              onGameOver?.({
-                score: s.score,
-                distance: Math.floor(s.distance),
-                coins: s.coins,
-                combo: s.combo,
-                speed: Math.round(s.speed),
-                brideDistancePct: 0,
-                activePowerups: s.activePowerups,
-                isGameOver: true,
-                isPaused: false,
-              });
-            }
-          } // end !demoMode (bride)
+          // La novia se aleja gradualmente si corres bien, pero se acerca cuando te chocas
+          const idealBrideX = 45;
+          if (s.brideX > idealBrideX) {
+            s.brideX = Math.max(idealBrideX, s.brideX - dt * 20);
+          }
+          // Si la novia te alcanza: GAME OVER
+          if (s.brideX >= PLAYER_X - 42 && !debugRef.current.godMode) {
+            s.isGameOver = true;
+            sound.playHit();
+            sound.playGameOver();
+            onGameOver?.({
+              score: s.score,
+              distance: Math.floor(s.distance),
+              coins: s.coins,
+              combo: s.combo,
+              speed: Math.round(s.speed),
+              brideDistancePct: 0,
+              activePowerups: s.activePowerups,
+              isGameOver: true,
+              isPaused: false,
+            });
+          }
 
-          // 4. GENERACIÓN DE OBSTÁCULOS  (skipped in demo mode)
-          if (!demoModeRef.current) {
-            s.obstacleSpawnTimer -= dt;
-            if (s.obstacleSpawnTimer <= 0) {
-              // Frecuencia dinámica según la velocidad
-              s.obstacleSpawnTimer = Math.max(
-                0.85,
-                2.2 - (s.speed - debugRef.current.baseSpeed) / 400 + Math.random() * 0.6
-              );
+          // 4. GENERACIÓN DE OBSTÁCULOS
+          s.obstacleSpawnTimer -= dt;
+          if (s.obstacleSpawnTimer <= 0) {
+            // Frecuencia dinámica según la velocidad
+            s.obstacleSpawnTimer = Math.max(
+              0.85,
+              2.2 - (s.speed - debugRef.current.baseSpeed) / 400 + Math.random() * 0.6
+            );
 
-              // Generar ráfaga o individual
-              const isBurst = Math.random() < 0.28;
-              const count = isBurst ? (Math.random() < 0.5 ? 2 : 3) : 1;
+            // Generar ráfaga o individual
+            const isBurst = Math.random() < 0.28;
+            const count = isBurst ? (Math.random() < 0.5 ? 2 : 3) : 1;
 
-              for (let i = 0; i < count; i++) {
-                const spawnX = CANVAS_WIDTH + 80 + i * (isBurst ? 140 : 0);
-                const isHigh = Math.random() < 0.42;
+            for (let i = 0; i < count; i++) {
+              const spawnX = CANVAS_WIDTH + 80 + i * (isBurst ? 140 : 0);
+              const isHigh = Math.random() < 0.42;
 
-                if (isHigh) {
-                  // Obstáculo Alto: Candelabro, Guirnalda, Campana
-                  const highSprites: SpriteId[] = [
-                    'obstacle_chandelier',
-                    'obstacle_garland',
-                    'obstacle_bell',
-                  ];
-                  const spr =
-                    highSprites[Math.floor(Math.random() * highSprites.length)];
-                  s.obstacles.push({
-                    id: Math.random().toString(),
-                    type: 'high',
-                    spriteId: spr,
-                    x: spawnX,
-                    y: CEILING_Y, // Cuelga del techo
-                    width: 54,
-                    height: 125, // Ocupa desde el techo hasta 275px del suelo, obligando a agacharse
-                    dodged: false,
-                    clearedInAir: false,
-                  });
-                } else {
-                  // Obstáculo Bajo: Pastel de bodas, Flores con espinas, Champán
-                  const lowSprites: SpriteId[] = [
-                    'obstacle_cake',
-                    'obstacle_flowers',
-                    'obstacle_champagne',
-                  ];
-                  const spr =
-                    lowSprites[Math.floor(Math.random() * lowSprites.length)];
-                  s.obstacles.push({
-                    id: Math.random().toString(),
-                    type: 'low',
-                    spriteId: spr,
-                    x: spawnX,
-                    y: GROUND_Y,
-                    width: 46,
-                    height: 52,
-                    dodged: false,
-                    clearedInAir: false,
-                  });
-                }
-              }
-            }
-          } // end !demoMode (obstacles)
-
-          // 5. GENERACIÓN DE POWER-UPS  (skipped in demo mode)
-          if (!demoModeRef.current) {
-            s.powerupSpawnTimer -= dt;
-            if (s.powerupSpawnTimer <= 0) {
-              s.powerupSpawnTimer = 8.0 + Math.random() * 6.0;
-              const types: PowerupType[] = [
-                'shield',
-                'magnet',
-                'boost',
-                'multiplier',
-              ];
-              const pType = types[Math.floor(Math.random() * types.length)];
-              const floatY = GROUND_Y - 90 - Math.random() * 80;
-              s.powerups.push(createPowerup(pType, CANVAS_WIDTH + 50, floatY));
-            }
-          } // end !demoMode (powerups)
-
-          // 6. GENERACIÓN DE MONEDAS (ANILLOS DE BODA)  (skipped in demo mode)
-          if (!demoModeRef.current) {
-            s.coinGroupSpawnTimer -= dt;
-            if (s.coinGroupSpawnTimer <= 0) {
-              s.coinGroupSpawnTimer = 3.0 + Math.random() * 2.5;
-              const pattern = Math.floor(Math.random() * 3);
-              const startX = CANVAS_WIDTH + 40;
-
-              if (pattern === 0) {
-                // Arco de salto
-                for (let i = 0; i < 5; i++) {
-                  const cx = startX + i * 36;
-                  const cy = GROUND_Y - 50 - Math.sin((i / 4) * Math.PI) * 90;
-                  s.coinsList.push({
-                    id: Math.random().toString(),
-                    x: cx,
-                    y: cy,
-                    baseY: cy,
-                    width: 24,
-                    height: 24,
-                    collected: false,
-                  });
-                }
-              } else if (pattern === 1) {
-                // Fila baja (recoger deslizándose o corriendo)
-                for (let i = 0; i < 4; i++) {
-                  s.coinsList.push({
-                    id: Math.random().toString(),
-                    x: startX + i * 40,
-                    y: GROUND_Y - 26,
-                    baseY: GROUND_Y - 26,
-                    width: 24,
-                    height: 24,
-                    collected: false,
-                  });
-                }
+              if (isHigh) {
+                // Obstáculo Alto: Candelabro, Guirnalda, Campana
+                const highSprites: SpriteId[] = [
+                  'obstacle_chandelier',
+                  'obstacle_garland',
+                  'obstacle_bell',
+                ];
+                const spr =
+                  highSprites[Math.floor(Math.random() * highSprites.length)];
+                s.obstacles.push({
+                  id: Math.random().toString(),
+                  type: 'high',
+                  spriteId: spr,
+                  x: spawnX,
+                  y: CEILING_Y, // Cuelga del techo
+                  width: 54,
+                  height: 125, // Ocupa desde el techo hasta 275px del suelo, obligando a agacharse
+                  dodged: false,
+                  clearedInAir: false,
+                });
               } else {
-                // Fila alta
-                for (let i = 0; i < 3; i++) {
-                  s.coinsList.push({
-                    id: Math.random().toString(),
-                    x: startX + i * 44,
-                    y: GROUND_Y - 110,
-                    baseY: GROUND_Y - 110,
-                    width: 24,
-                    height: 24,
-                    collected: false,
-                  });
-                }
+                // Obstáculo Bajo: Pastel de bodas, Flores con espinas, Champán
+                const lowSprites: SpriteId[] = [
+                  'obstacle_cake',
+                  'obstacle_flowers',
+                  'obstacle_champagne',
+                ];
+                const spr =
+                  lowSprites[Math.floor(Math.random() * lowSprites.length)];
+                s.obstacles.push({
+                  id: Math.random().toString(),
+                  type: 'low',
+                  spriteId: spr,
+                  x: spawnX,
+                  y: GROUND_Y,
+                  width: 46,
+                  height: 52,
+                  dodged: false,
+                  clearedInAir: false,
+                });
               }
             }
-          } // end !demoMode (coins)
+          }
+
+          // 5. GENERACIÓN DE POWER-UPS
+          s.powerupSpawnTimer -= dt;
+          if (s.powerupSpawnTimer <= 0) {
+            s.powerupSpawnTimer = 8.0 + Math.random() * 6.0;
+            const types: PowerupType[] = [
+              'shield',
+              'magnet',
+              'boost',
+              'multiplier',
+            ];
+            const pType = types[Math.floor(Math.random() * types.length)];
+            const floatY = GROUND_Y - 90 - Math.random() * 80;
+            s.powerups.push(createPowerup(pType, CANVAS_WIDTH + 50, floatY));
+          }
+
+          // 6. GENERACIÓN DE MONEDAS (ANILLOS DE BODA)
+          s.coinGroupSpawnTimer -= dt;
+          if (s.coinGroupSpawnTimer <= 0) {
+            s.coinGroupSpawnTimer = 3.0 + Math.random() * 2.5;
+            const pattern = Math.floor(Math.random() * 3);
+            const startX = CANVAS_WIDTH + 40;
+
+            if (pattern === 0) {
+              // Arco de salto
+              for (let i = 0; i < 5; i++) {
+                const cx = startX + i * 36;
+                const cy = GROUND_Y - 50 - Math.sin((i / 4) * Math.PI) * 90;
+                s.coinsList.push({
+                  id: Math.random().toString(),
+                  x: cx,
+                  y: cy,
+                  baseY: cy,
+                  width: 24,
+                  height: 24,
+                  collected: false,
+                });
+              }
+            } else if (pattern === 1) {
+              // Fila baja (recoger deslizándose o corriendo)
+              for (let i = 0; i < 4; i++) {
+                s.coinsList.push({
+                  id: Math.random().toString(),
+                  x: startX + i * 40,
+                  y: GROUND_Y - 26,
+                  baseY: GROUND_Y - 26,
+                  width: 24,
+                  height: 24,
+                  collected: false,
+                });
+              }
+            } else {
+              // Fila alta
+              for (let i = 0; i < 3; i++) {
+                s.coinsList.push({
+                  id: Math.random().toString(),
+                  x: startX + i * 44,
+                  y: GROUND_Y - 110,
+                  baseY: GROUND_Y - 110,
+                  width: 24,
+                  height: 24,
+                  collected: false,
+                });
+              }
+            }
+          }
 
           // 7. ACTUALIZAR OBSTÁCULOS & COLISIONES
           for (let i = s.obstacles.length - 1; i >= 0; i--) {
