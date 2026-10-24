@@ -1,6 +1,8 @@
 {
-  "name": "PincheGorda - Auto-Runner de Boda",
-  "description": "Juego 2D Auto-Runner estilo Power Pamplona donde un novio escapa de su furiosa novia con rodillo en mano a través de una fiesta caótica.",
+  "name": "Carrera contra el Altar - Auto-Runner de Boda",
+  "description": "Juego 2D Auto-Runner donde un novio escapa de su furiosa novia a través de una fiesta caótica.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
