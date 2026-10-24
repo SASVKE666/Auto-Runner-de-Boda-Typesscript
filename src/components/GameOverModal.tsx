@@ -14,7 +14,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ stats, highScore, 
             <div className="bg-gradient-to-b from-stone-900 to-stone-950 border-2 border-rose-600/80 p-6 sm:p-8 rounded-2xl max-w-lg w-full text-center shadow-2xl shadow-rose-950/50">
                 <div className="w-16 h-16 rounded-full bg-rose-600/20 border-2 border-rose-500 flex items-center justify-center mx-auto mb-4 text-3xl">💀</div>
                 <h2 className="text-2xl sm:text-4xl font-black text-rose-500 uppercase tracking-tight mb-1">¡Te Atrapó la Novia!</h2>
-                <p className="text-stone-300 text-sm mb-6 font-medium">Un golpe certero de rodillo de cocina selló tu destino matrimonial.</p>
+                <p className="text-stone-300 text-sm mb-6 font-medium">¡No pudiste escapar del altar! La furiosa novia te atrapó con su ramo nupcial.</p>
 
                 <div className="grid grid-cols-2 gap-3 bg-stone-900/90 border border-stone-800 p-4 rounded-xl mb-6 text-left">
                     <div><span className="text-xs text-stone-400 uppercase font-bold block">Puntuación</span><span className="font-mono text-xl sm:text-2xl font-black text-amber-400">{stats.score.toLocaleString()}</span></div>

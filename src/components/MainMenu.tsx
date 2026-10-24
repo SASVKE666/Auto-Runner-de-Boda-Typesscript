@@ -20,7 +20,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onHowToPlay, highSco
             <h1 className="text-5xl sm:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-rose-400 to-amber-400 mb-4 tracking-tight text-center leading-tight z-10 px-4">
                 CARRERA CONTRA<br />EL ALTAR
             </h1>
-            <p className="text-stone-400 text-sm mb-12 italic z-10">¡Huye de la novia antes de que te aplaste con el rodillo!</p>
+            <p className="text-stone-400 text-sm mb-12 italic z-10">¡Huye de la novia antes de que te atrape para la boda!</p>
 
             {highScore > 0 && (
                 <div className="absolute top-8 right-8 flex items-center gap-2 bg-amber-950/50 border border-amber-500/50 px-4 py-2 rounded-xl z-10">

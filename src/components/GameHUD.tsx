@@ -60,7 +60,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ stats, soundMuted, isPaused, o
                 <div className="flex items-center justify-between text-xs font-black uppercase mb-1">
                     <div className="flex items-center gap-2 text-rose-400"><span className="animate-pulse">⚠️</span><span className="hidden sm:inline">Distancia de la Novia Furiosa:</span><span className="sm:hidden">Novia:</span></div>
                     <div className="font-mono text-stone-400 text-right">
-                        {stats.brideDistancePct <= 25 ? <span className="text-rose-500 font-extrabold animate-bounce">¡AL ALCANCE DEL RODILLO!</span> : stats.brideDistancePct <= 50 ? <span className="text-amber-400">¡SE ACERCA!</span> : <span className="text-emerald-400">VENTAJA</span>}
+                        {stats.brideDistancePct <= 25 ? <span className="text-rose-500 font-extrabold animate-bounce">¡TE VA A ATRAPAR!</span> : stats.brideDistancePct <= 50 ? <span className="text-amber-400">¡SE ACERCA!</span> : <span className="text-emerald-400">VENTAJA</span>}
                     </div>
                 </div>
                 <div className="w-full h-3 bg-stone-900 rounded-full overflow-hidden border border-stone-800 relative shadow-inner">

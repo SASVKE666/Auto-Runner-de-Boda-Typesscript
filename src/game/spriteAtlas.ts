@@ -10,8 +10,14 @@ export type SpriteId =
   | 'groom_run_1'
   | 'groom_run_2'
   | 'groom_run_3'
+  | 'groom_jump_up'
+  | 'groom_jump_apex'
   | 'groom_jump'
   | 'groom_fall'
+  | 'groom_fast_fall'
+  | 'groom_slide_0'
+  | 'groom_slide_1'
+  | 'groom_slide_2'
   | 'groom_slide'
   | 'bride_chase_0'
   | 'bride_chase_1'
@@ -38,18 +44,24 @@ export interface SpriteDef {
 }
 
 export const SPRITE_DEFINITIONS: Record<SpriteId, SpriteDef> = {
-  groom_run_0: { id: 'groom_run_0', width: 48, height: 72, anchorX: 0.5, anchorY: 1.0 },
-  groom_run_1: { id: 'groom_run_1', width: 48, height: 72, anchorX: 0.5, anchorY: 1.0 },
-  groom_run_2: { id: 'groom_run_2', width: 48, height: 72, anchorX: 0.5, anchorY: 1.0 },
-  groom_run_3: { id: 'groom_run_3', width: 48, height: 72, anchorX: 0.5, anchorY: 1.0 },
-  groom_jump: { id: 'groom_jump', width: 50, height: 74, anchorX: 0.5, anchorY: 1.0 },
-  groom_fall: { id: 'groom_fall', width: 50, height: 74, anchorX: 0.5, anchorY: 1.0 },
-  groom_slide: { id: 'groom_slide', width: 68, height: 36, anchorX: 0.5, anchorY: 1.0 },
+  groom_run_0: { id: 'groom_run_0', width: 50, height: 72, anchorX: 0.5, anchorY: 1.0 },
+  groom_run_1: { id: 'groom_run_1', width: 50, height: 72, anchorX: 0.5, anchorY: 1.0 },
+  groom_run_2: { id: 'groom_run_2', width: 50, height: 72, anchorX: 0.5, anchorY: 1.0 },
+  groom_run_3: { id: 'groom_run_3', width: 50, height: 72, anchorX: 0.5, anchorY: 1.0 },
+  groom_jump_up: { id: 'groom_jump_up', width: 54, height: 76, anchorX: 0.5, anchorY: 1.0 },
+  groom_jump_apex: { id: 'groom_jump_apex', width: 56, height: 70, anchorX: 0.5, anchorY: 1.0 },
+  groom_jump: { id: 'groom_jump', width: 54, height: 74, anchorX: 0.5, anchorY: 1.0 },
+  groom_fall: { id: 'groom_fall', width: 52, height: 74, anchorX: 0.5, anchorY: 1.0 },
+  groom_fast_fall: { id: 'groom_fast_fall', width: 50, height: 78, anchorX: 0.5, anchorY: 1.0 },
+  groom_slide_0: { id: 'groom_slide_0', width: 62, height: 48, anchorX: 0.5, anchorY: 1.0 },
+  groom_slide_1: { id: 'groom_slide_1', width: 72, height: 35, anchorX: 0.5, anchorY: 1.0 },
+  groom_slide_2: { id: 'groom_slide_2', width: 66, height: 42, anchorX: 0.5, anchorY: 1.0 },
+  groom_slide: { id: 'groom_slide', width: 72, height: 35, anchorX: 0.5, anchorY: 1.0 },
 
-  bride_chase_0: { id: 'bride_chase_0', width: 64, height: 84, anchorX: 0.5, anchorY: 1.0 },
-  bride_chase_1: { id: 'bride_chase_1', width: 64, height: 84, anchorX: 0.5, anchorY: 1.0 },
-  bride_chase_2: { id: 'bride_chase_2', width: 64, height: 84, anchorX: 0.5, anchorY: 1.0 },
-  bride_chase_3: { id: 'bride_chase_3', width: 64, height: 84, anchorX: 0.5, anchorY: 1.0 },
+  bride_chase_0: { id: 'bride_chase_0', width: 92, height: 98, anchorX: 0.5, anchorY: 1.0 },
+  bride_chase_1: { id: 'bride_chase_1', width: 92, height: 98, anchorX: 0.5, anchorY: 1.0 },
+  bride_chase_2: { id: 'bride_chase_2', width: 92, height: 98, anchorX: 0.5, anchorY: 1.0 },
+  bride_chase_3: { id: 'bride_chase_3', width: 92, height: 98, anchorX: 0.5, anchorY: 1.0 },
 
   obstacle_cake: { id: 'obstacle_cake', width: 46, height: 52, anchorX: 0.5, anchorY: 1.0 },
   obstacle_flowers: { id: 'obstacle_flowers', width: 44, height: 48, anchorX: 0.5, anchorY: 1.0 },
@@ -181,7 +193,17 @@ function renderCustomSprite(
   }
 }
 
-/** Novio corriendo / saltando / deslizándose */
+/**
+ * Novio corredor (Protagonista)
+ * Modelo fiel a las imágenes de referencia y spritesheet:
+ * - Piel amarilla cómica
+ * - Pelo castaño estilo anime/emo puntiagudo con flequillo
+ * - Ojos grandes púrpura / violeta eléctrico
+ * - Oreja con piercings plateados
+ * - Torso amarillo sin camisa con boxers carbón
+ * - Animaciones ricas de Salto (subida, ápice acrobático tuck-jump, caída, fast-fall en picada)
+ * - Animaciones ricas de Agacharse/Deslizarse (agachado inicial, derrape a ras de suelo con chispas de fricción, y recuperación)
+ */
 function renderGroom(
   ctx: CanvasRenderingContext2D,
   id: string,
@@ -190,236 +212,732 @@ function renderGroom(
   t: number,
   hasShield?: boolean
 ) {
-  const isSliding = id === 'groom_slide';
-  const isJumping = id === 'groom_jump';
-  const isFalling = id === 'groom_fall';
+  const isSliding0 = id === 'groom_slide_0';
+  const isSliding1 = id === 'groom_slide_1' || id === 'groom_slide';
+  const isSliding2 = id === 'groom_slide_2';
+  const isAnySlide = isSliding0 || isSliding1 || isSliding2;
 
-  // Si tiene escudo, dibuja burbuja protectora translúcida
+  const isJumpUp = id === 'groom_jump_up' || id === 'groom_jump';
+  const isJumpApex = id === 'groom_jump_apex';
+  const isFalling = id === 'groom_fall';
+  const isFastFalling = id === 'groom_fast_fall';
+  const isInAir = isJumpUp || isJumpApex || isFalling || isFastFalling;
+
+  // Escudo protector
   if (hasShield) {
     ctx.save();
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 3;
     ctx.fillStyle = 'rgba(56, 189, 248, 0.22)';
     ctx.beginPath();
-    ctx.ellipse(w / 2, h / 2, w * 0.7, h * 0.65, 0, 0, Math.PI * 2);
+    ctx.ellipse(w / 2, isAnySlide ? h / 2 : h * 0.55, w * 0.7, isAnySlide ? h * 0.55 : h * 0.6, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
   }
 
-  if (isSliding) {
-    // Novio deslizándose en el suelo horizontalmente
-    // Sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  // =========================================================================
+  // 1. ANIMACIÓN DE DESLIZAMIENTO / AGACHARSE (PANTALONES SIEMPRE VISIBLES)
+  // =========================================================================
+  if (isAnySlide) {
+    // Sombra baja alargada en el piso
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath();
-    ctx.ellipse(w / 2, h - 2, w / 2, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(w / 2, h - 2, w * 0.48, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Piernas estiradas
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(w * 0.1, h * 0.55, w * 0.5, 12);
-    // Zapatos negros
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(w * 0.05, h * 0.55, 14, 13);
+    // Chispas de fricción y polvo
+    if (isSliding1) {
+      for (let i = 0; i < 4; i++) {
+        const sparkPhase = ((t * 25 + i * 0.3) % 1);
+        const sparkX = w * 0.28 - sparkPhase * 36;
+        const sparkY = h - 2 - Math.random() * 5;
+        ctx.fillStyle = i % 2 === 0 ? '#f59e0b' : '#ef4444';
+        ctx.beginPath();
+        ctx.arc(sparkX, sparkY, 2.5 - sparkPhase * 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const dustPhase = (t * 18) % 1;
+      ctx.fillStyle = 'rgba(226, 232, 240, 0.45)';
+      ctx.beginPath();
+      ctx.arc(w * 0.16 - dustPhase * 25, h - 5 - dustPhase * 4, 4 + dustPhase * 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    // Torso inclinado
-    ctx.fillStyle = '#f8fafc'; // Traje blanco
-    ctx.beginPath();
-    ctx.roundRect(w * 0.45, h * 0.35, 24, 16, 4);
-    ctx.fill();
+    if (isSliding0) {
+      // FASE 0: INICIO DE AGACHADO (dejándose caer con una rodilla)
+      // Pierna trasera doblada con pantorrilla hacia atrás
+      drawLegLimb(ctx, w * 0.30, h - 22, w * 0.16, h - 14, w * 0.08, h - 4, true);
 
-    // Corbata roja ondeando hacia atrás
-    ctx.fillStyle = '#ef4444';
-    ctx.beginPath();
-    ctx.moveTo(w * 0.48, h * 0.4);
-    ctx.lineTo(w * 0.32, h * 0.25);
-    ctx.lineTo(w * 0.34, h * 0.45);
-    ctx.closePath();
-    ctx.fill();
+      // PANTALONES / SHORTS CARBÓN (CADERA DELGADA Y AJUSTADA)
+      drawPants(ctx, w * 0.36, h - 28, 15, 14, 0.15);
 
-    // Cabeza con cara asustada
-    ctx.fillStyle = '#fed7aa';
-    ctx.beginPath();
-    ctx.arc(w * 0.75, h * 0.45, 11, 0, Math.PI * 2);
-    ctx.fill();
+      // Torso amarillo
+      ctx.fillStyle = '#facc15';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(w * 0.42, h - 38, 17, 16, 4);
+      ctx.fill();
+      ctx.stroke();
 
-    // Cabello negro despeinado
-    ctx.fillStyle = '#1e1b4b';
-    ctx.beginPath();
-    ctx.arc(w * 0.77, h * 0.38, 11, Math.PI, Math.PI * 2);
-    ctx.fill();
+      // Pierna delantera flexionada
+      drawLegLimb(ctx, w * 0.42, h - 20, w * 0.52, h - 14, w * 0.62, h - 4, false);
 
-    // Ojo blanco bien abierto de pánico
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(w * 0.79, h * 0.43, 3.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#000000';
-    ctx.beginPath();
-    ctx.arc(w * 0.81, h * 0.43, 1.8, 0, Math.PI * 2);
-    ctx.fill();
+      // Brazo rozando el piso
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.54, h - 30);
+      ctx.lineTo(w * 0.7, h - 8);
+      ctx.stroke();
 
-    // Gotas de sudor
-    ctx.fillStyle = '#38bdf8';
+      drawGroomHead(ctx, w * 0.64, h - 34, 0.12, t, 'focused');
+      return;
+    }
+
+    if (isSliding1) {
+      // FASE 1: DERRAPE PLENO A RAS DE SUELO (horizontal, cadera delgada y pantalones)
+      // Pierna trasera extendida plana
+      drawLegLimb(ctx, w * 0.30, h - 16, w * 0.16, h - 12, w * 0.04, h - 6, true);
+
+      // PANTALONES / SHORTS CARBÓN (CADERA DELGADA)
+      drawPants(ctx, w * 0.35, h - 22, 15, 12, 0.1);
+
+      // Torso amarillo rasante
+      ctx.fillStyle = '#facc15';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(w * 0.43, h - 22, 18, 13, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Pierna delantera plegada debajo
+      drawLegLimb(ctx, w * 0.40, h - 14, w * 0.5, h - 12, w * 0.58, h - 6, false);
+
+      // Brazo apoyado adelante con chispas
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.56, h - 16);
+      ctx.lineTo(w * 0.8, h - 6);
+      ctx.stroke();
+
+      drawGroomHead(ctx, w * 0.72, h - 22, 0.2, t, 'gritted');
+      return;
+    }
+
+    // FASE 2: RECUPERACIÓN (reincorporándose con manos)
+    drawLegLimb(ctx, w * 0.30, h - 20, w * 0.18, h - 12, w * 0.12, h - 4, true);
+
+    // PANTALONES (CADERA DELGADA)
+    drawPants(ctx, w * 0.36, h - 28, 15, 14, 0.05);
+
+    ctx.fillStyle = '#facc15';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(w * 0.9, h * 0.3, 2.5, 0, Math.PI * 2);
+    ctx.roundRect(w * 0.43, h - 34, 17, 15, 4);
     ctx.fill();
+    ctx.stroke();
+
+    drawLegLimb(ctx, w * 0.42, h - 20, w * 0.48, h - 12, w * 0.54, h - 4, false);
+
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.54, h - 26);
+    ctx.lineTo(w * 0.68, h - 8);
+    ctx.stroke();
+
+    drawGroomHead(ctx, w * 0.64, h - 32, 0.05, t, 'focused');
     return;
   }
 
-  // --- Postura de pie / saltando / corriendo ---
-  const legCycle = Math.sin(t * 18);
-  const armCycle = Math.cos(t * 18);
-
-  // Sombra proyectada
-  if (!isJumping && !isFalling) {
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  // =========================================================================
+  // 2. ANIMACIÓN EN EL AIRE / SALTO (PIERNAS NATURALES + CADERA DELGADA)
+  // =========================================================================
+  if (isInAir) {
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
     ctx.beginPath();
-    ctx.ellipse(w / 2, h - 2, 16, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(w / 2, h - 2, 12, 3, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    if (isFastFalling) {
+      // Picada aerodinámica con pantalones claros y piernas estilizadas
+      ctx.strokeStyle = 'rgba(147, 51, 234, 0.6)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        const lx = w * 0.25 + i * 14;
+        ctx.beginPath();
+        ctx.moveTo(lx, h * 0.1);
+        ctx.lineTo(lx, h * 0.7);
+        ctx.stroke();
+      }
+
+      // Piernas estiradas arriba con pantalones en los muslos
+      drawLegLimb(ctx, w * 0.39, h - 50, w * 0.35, h - 62, w * 0.32, h - 72, true);
+      drawLegLimb(ctx, w * 0.45, h - 50, w * 0.43, h - 62, w * 0.41, h - 72, false);
+
+      // PANTALONES (CADERA DELGADA)
+      drawPants(ctx, w * 0.37, h - 52, 15, 14, -0.2);
+
+      // Torso
+      ctx.fillStyle = '#facc15';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(w * 0.36, h - 38, 17, 18, 5);
+      ctx.fill();
+      ctx.stroke();
+
+      // Brazos pegados
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.36, h - 34);
+      ctx.lineTo(w * 0.3, h - 48);
+      ctx.moveTo(w * 0.54, h - 34);
+      ctx.lineTo(w * 0.6, h - 48);
+      ctx.stroke();
+
+      drawGroomHead(ctx, w * 0.45, h - 18, 0.3, t, 'screaming');
+      return;
+    }
+
+    if (isJumpUp) {
+      // SALTO ASCENDENTE (Rodillas subiendo de manera natural y atlética)
+      // Pierna trasera subiendo doblada
+      drawLegLimb(ctx, w * 0.39, h - 46, w * 0.30, h - 34, w * 0.32, h - 22, true);
+
+      // PANTALONES (CADERA DELGADA)
+      drawPants(ctx, w * 0.36, h - 48, 15, 14, 0);
+
+      // Torso
+      ctx.fillStyle = '#facc15';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(w * 0.36, h - 62, 17, 16, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Pierna delantera doblada hacia arriba con rodilla al frente
+      drawLegLimb(ctx, w * 0.46, h - 46, w * 0.58, h - 36, w * 0.52, h - 22, false);
+
+      // Brazos arriba
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.36, h - 58);
+      ctx.lineTo(w * 0.22, h - 70);
+      ctx.moveTo(w * 0.52, h - 58);
+      ctx.lineTo(w * 0.68, h - 70);
+      ctx.stroke();
+
+      drawGroomHead(ctx, w * 0.44, h - 70, -0.15, t, 'gritted');
+      return;
+    }
+
+    if (isJumpApex) {
+      // ÁPICE DEL SALTO (Pose ninja tuck jump: piernas flexionadas naturales al pecho)
+      // Pierna 1 recogida
+      drawLegLimb(ctx, w * 0.38, h - 40, w * 0.25, h - 44, w * 0.32, h - 34, true);
+
+      // PANTALONES (CADERA DELGADA)
+      drawPants(ctx, w * 0.36, h - 42, 15, 14, 0);
+
+      // Torso
+      ctx.fillStyle = '#facc15';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(w * 0.36, h - 56, 17, 16, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Pierna 2 recogida al frente
+      drawLegLimb(ctx, w * 0.46, h - 40, w * 0.60, h - 44, w * 0.54, h - 34, false);
+
+      // Brazos abiertos
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.35, h - 52);
+      ctx.lineTo(w * 0.16, h - 46);
+      ctx.moveTo(w * 0.53, h - 52);
+      ctx.lineTo(w * 0.72, h - 46);
+      ctx.stroke();
+
+      drawGroomHead(ctx, w * 0.44, h - 64, 0, t, 'screaming');
+      return;
+    }
+
+    // CAÍDA REGULAR (Piernas extendiéndose para aterrizar de manera realista)
+    drawLegLimb(ctx, w * 0.39, h - 40, w * 0.33, h - 26, w * 0.3, h - 14, true);
+
+    // PANTALONES (CADERA DELGADA)
+    drawPants(ctx, w * 0.36, h - 42, 15, 14, 0);
+
+    // Torso
+    ctx.fillStyle = '#facc15';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(w * 0.36, h - 56, 17, 16, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    drawLegLimb(ctx, w * 0.46, h - 40, w * 0.50, h - 26, w * 0.54, h - 14, false);
+
+    // Brazos
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.35, h - 52);
+    ctx.lineTo(w * 0.22, h - 66);
+    ctx.moveTo(w * 0.53, h - 52);
+    ctx.lineTo(w * 0.66, h - 66);
+    ctx.stroke();
+
+    drawGroomHead(ctx, w * 0.44, h - 64, 0.05, t, 'gritted');
+    return;
   }
 
-  // Piernas (Pantalón negro/esmoquin)
-  ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 6;
-  ctx.lineCap = 'round';
+  // =========================================================================
+  // 3. ANIMACIÓN DE CORRER (MOVIMIENTO NATURAL DE PIERNAS CON 2 ARTICULACIONES)
+  // =========================================================================
+  // Ciclo angular fluido de zancada
+  const runRate = 14;
+  const cycle = (t * runRate) % (Math.PI * 2);
+  const runBounce = Math.sin(cycle * 2) * 2.5;
 
-  if (isJumping || isFalling) {
-    // Pierna trasera flexionada
-    ctx.beginPath();
-    ctx.moveTo(w / 2 - 4, h - 30);
-    ctx.lineTo(w / 2 - 14, h - 18);
-    ctx.lineTo(w / 2 - 6, h - 6);
-    ctx.stroke();
-
-    // Pierna delantera extendida
-    ctx.beginPath();
-    ctx.moveTo(w / 2 + 4, h - 30);
-    ctx.lineTo(w / 2 + 16, h - 16);
-    ctx.lineTo(w / 2 + 20, h - 4);
-    ctx.stroke();
-  } else {
-    // Animación de correr
-    const legOffset = legCycle * 14;
-    // Pierna 1
-    ctx.beginPath();
-    ctx.moveTo(w / 2 - 3, h - 32);
-    ctx.lineTo(w / 2 - legOffset, h - 16);
-    ctx.lineTo(w / 2 - legOffset * 1.2, h - 3);
-    ctx.stroke();
-
-    // Pierna 2
-    ctx.beginPath();
-    ctx.moveTo(w / 2 + 3, h - 32);
-    ctx.lineTo(w / 2 + legOffset, h - 16);
-    ctx.lineTo(w / 2 + legOffset * 1.2, h - 3);
-    ctx.stroke();
-  }
-
-  // Torso / Saco Blanco
-  const bobbing = Math.abs(Math.sin(t * 18)) * 3;
-  const torsoY = h - 52 + (isJumping ? 0 : bobbing);
-
-  ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.lineWidth = 1.5;
+  // Sombra proyectada en el suelo
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.beginPath();
-  ctx.roundRect(w / 2 - 12, torsoY, 24, 25, 4);
+  ctx.ellipse(w * 0.48, h - 2, 18, 4.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const hipY = h - 34 + runBounce;
+  // Caderas delgadas centradas armoniosamente
+  const hipX1 = w * 0.43;
+  const hipX2 = w * 0.48;
+
+  // Cinemática natural de carrera: pierna 1 (trasera) y pierna 2 (delantera)
+  const p1 = cycle;
+  const p2 = (cycle + Math.PI) % (Math.PI * 2);
+
+  // PIERNA TRASERA (se dibuja primero, detrás del torso y shorts)
+  drawNaturalRunLeg(ctx, hipX1, hipY, p1, true);
+
+  // PANTALONES / SHORTS CARBÓN (CADERA DELGADA Y ESTILIZADA)
+  drawPants(ctx, w * 0.37, hipY - 14, 15, 14, 0.05);
+
+  // Torso amarillo sin camisa con inclinación aerodinámica
+  const torsoY = hipY - 26;
+  ctx.fillStyle = '#facc15';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(w * 0.37, torsoY, 17, 16, 4);
   ctx.fill();
   ctx.stroke();
 
-  // Solapas del smoking y camisa
-  ctx.fillStyle = '#0f172a'; // Solapa
+  // Pecho / clavículas
+  ctx.strokeStyle = '#b45309';
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(w / 2 - 10, torsoY);
-  ctx.lineTo(w / 2 - 4, torsoY + 12);
-  ctx.lineTo(w / 2 - 10, torsoY + 18);
-  ctx.fill();
+  ctx.arc(w * 0.43, torsoY + 7, 1, 0, Math.PI * 2);
+  ctx.arc(w * 0.50, torsoY + 7, 1, 0, Math.PI * 2);
+  ctx.stroke();
 
+  // PIERNA DELANTERA (se dibuja en primer plano, con articulación y sombra natural)
+  drawNaturalRunLeg(ctx, hipX2, hipY, p2, false);
+
+  // Braceo armónico coordinado con las piernas
+  const armSwing = Math.sin(cycle) * 14;
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+
+  // Brazo trasero
   ctx.beginPath();
-  ctx.moveTo(w / 2 + 10, torsoY);
-  ctx.lineTo(w / 2 + 4, torsoY + 12);
-  ctx.lineTo(w / 2 + 10, torsoY + 18);
-  ctx.fill();
+  ctx.moveTo(w * 0.4, torsoY + 4);
+  ctx.lineTo(w * 0.4 - armSwing, torsoY + 16);
+  ctx.stroke();
 
-  // Corbata Roja brillante (flotando con el viento hacia la izquierda)
-  ctx.fillStyle = '#dc2626';
+  // Brazo delantero
   ctx.beginPath();
-  ctx.moveTo(w / 2, torsoY + 4);
-  ctx.lineTo(w / 2 - 14, torsoY + 12);
-  ctx.lineTo(w / 2 - 8, torsoY + 18);
-  ctx.lineTo(w / 2, torsoY + 8);
-  ctx.closePath();
-  ctx.fill();
+  ctx.moveTo(w * 0.52, torsoY + 4);
+  ctx.lineTo(w * 0.52 + armSwing, torsoY + 16);
+  ctx.stroke();
 
-  // Brazos
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 5;
-  if (isJumping) {
-    // Brazos levantados de susto
-    ctx.beginPath();
-    ctx.moveTo(w / 2 - 8, torsoY + 6);
-    ctx.lineTo(w / 2 - 16, torsoY - 8);
-    ctx.stroke();
+  // Cabeza con ojos reducidos y pelo estilizado
+  drawGroomHead(ctx, w * 0.47, torsoY - 8, 0.06, t, 'gritted');
 
-    ctx.beginPath();
-    ctx.moveTo(w / 2 + 8, torsoY + 6);
-    ctx.lineTo(w / 2 + 18, torsoY - 10);
-    ctx.stroke();
-  } else {
-    // Braceo dinámico
-    const armOffset = armCycle * 12;
-    ctx.beginPath();
-    ctx.moveTo(w / 2 - 8, torsoY + 6);
-    ctx.lineTo(w / 2 - armOffset, torsoY + 18);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(w / 2 + 8, torsoY + 6);
-    ctx.lineTo(w / 2 + armOffset, torsoY + 18);
-    ctx.stroke();
-  }
-
-  // Cabeza
-  const headY = torsoY - 13;
-  ctx.fillStyle = '#fed7aa';
-  ctx.beginPath();
-  ctx.arc(w / 2 + 1, headY, 11, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Pelo negro engominado pero desaliñado
-  ctx.fillStyle = '#1e1b4b';
-  ctx.beginPath();
-  ctx.arc(w / 2 + 1, headY - 3, 11, Math.PI * 0.9, Math.PI * 2.1);
-  ctx.fill();
-  // Mechón rebelde
-  ctx.fillRect(w / 2 - 10, headY - 12, 6, 4);
-
-  // Ojo mirando hacia atrás con pánico
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(w / 2 - 2, headY - 1, 4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#000000';
-  ctx.beginPath();
-  ctx.arc(w / 2 - 4, headY - 1, 2, 0, Math.PI * 2); // Pupila mirando a la izquierda
-  ctx.fill();
-
-  // Boca gritando (óvalo negro con lengua)
-  ctx.fillStyle = '#7f1d1d';
-  ctx.beginPath();
-  ctx.ellipse(w / 2 + 4, headY + 5, 3.5, 4.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Gotas de sudor volando
-  ctx.fillStyle = '#38bdf8';
+  // Sudor por la velocidad
   const sweatPhase = (t * 5) % 1;
+  ctx.fillStyle = '#38bdf8';
   ctx.beginPath();
-  ctx.arc(w / 2 - 12 - sweatPhase * 8, headY - 6 + sweatPhase * 4, 2, 0, Math.PI * 2);
+  ctx.arc(w * 0.3 - sweatPhase * 14, torsoY - 12 + sweatPhase * 6, 2.5, 0, Math.PI * 2);
   ctx.fill();
 }
 
-/** Novia furiosa en vestido rojo con rodillo de cocina ("PincheGorda") */
+/**
+ * Dibuja los pantalones/shorts deportivos carbón de cadera delgada y estilizada
+ */
+function drawPants(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  angle = 0
+) {
+  ctx.save();
+  ctx.translate(x + width / 2, y + height / 2);
+  ctx.rotate(angle);
+
+  const hw = width / 2;
+  const hh = height / 2;
+
+  // Cadera delgada y estilizada (carbón oscuro #27272a)
+  ctx.fillStyle = '#27272a';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.roundRect(-hw, -hh, width, height, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  // Salida de las perneras del pantalón hacia las piernas
+  ctx.beginPath();
+  ctx.roundRect(-hw + 0.5, hh - 3.5, width * 0.46, 4, [0, 0, 2, 2]);
+  ctx.roundRect(0.5, hh - 3.5, width * 0.46, 4, [0, 0, 2, 2]);
+  ctx.fill();
+  ctx.stroke();
+
+  // Cintura elástica gris ajustada (#52525b)
+  ctx.fillStyle = '#52525b';
+  ctx.fillRect(-hw, -hh, width, 3);
+
+  ctx.restore();
+}
+
+/**
+ * Cinemática natural de pierna humana para el ciclo de carrera:
+ * Cadera -> Muslo con pantalón -> Rodilla -> Pantorrilla amarilla -> Zapatilla
+ */
+function drawNaturalRunLeg(
+  ctx: CanvasRenderingContext2D,
+  hipX: number,
+  hipY: number,
+  phase: number,
+  isBehind: boolean
+) {
+  // Simulación biomecánica fluida de carrera:
+  // - En impulso (fase > PI): pierna se estira hacia atrás y pisa el suelo
+  // - En recobro (fase <= PI): rodilla se dobla hacia adelante y el talón sube
+  const sin = Math.sin(phase);
+
+  // Ángulo del muslo (inclinación adelante/atrás)
+  const thighAngle = sin * 0.65;
+
+  // Ángulo de flexión de la rodilla (se dobla hacia atrás durante el recobro)
+  const kneeBend = phase < Math.PI ? Math.sin(phase) * 1.25 : Math.max(0, -sin * 0.35);
+
+  const thighLen = 13;
+  const calfLen = 13;
+
+  // Cálculo de posiciones articulares
+  const kneeX = hipX + Math.sin(thighAngle) * thighLen;
+  const kneeY = hipY + Math.cos(thighAngle) * thighLen;
+
+  const calfAngle = thighAngle - kneeBend;
+  const footX = kneeX + Math.sin(calfAngle) * calfLen;
+  const footY = Math.min(480, kneeY + Math.cos(calfAngle) * calfLen);
+
+  drawLegLimb(ctx, hipX, hipY, kneeX, kneeY, footX, footY, isBehind);
+}
+
+/**
+ * Dibuja una pierna con:
+ * - Tramo superior (cadera -> rodilla): PANTALÓN / BERMUDA de tela carbón
+ * - Tramo inferior (rodilla -> pie): PIEL AMARILLA expuesta
+ * - Pie: Zapatilla deportiva estilizada
+ */
+function drawLegLimb(
+  ctx: CanvasRenderingContext2D,
+  hipX: number,
+  hipY: number,
+  kneeX: number,
+  kneeY: number,
+  footX: number,
+  footY: number,
+  isBehind: boolean
+) {
+  ctx.save();
+
+  // 1. PANTALÓN EN LA PIERNA (Muslo cubierto con el pantalón carbón)
+  // Contorno negro del muslo/pantalón
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 6.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(hipX, hipY);
+  ctx.lineTo(kneeX, kneeY);
+  ctx.stroke();
+
+  // Relleno de la tela del pantalón (#27272a carbón oscuro, #18181b si está detrás)
+  ctx.strokeStyle = isBehind ? '#18181b' : '#27272a';
+  ctx.lineWidth = 4.8;
+  ctx.beginPath();
+  ctx.moveTo(hipX, hipY);
+  ctx.lineTo(kneeX, kneeY);
+  ctx.stroke();
+
+  // Dobladillo/borde del pantalón justo encima de la rodilla
+  ctx.strokeStyle = isBehind ? '#3f3f46' : '#52525b';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  const dx = kneeX - hipX;
+  const dy = kneeY - hipY;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+  ctx.moveTo(kneeX - nx * 3.5, kneeY - ny * 3.5);
+  ctx.lineTo(kneeX + nx * 3.5, kneeY + ny * 3.5);
+  ctx.stroke();
+
+  // 2. PIEL AMARILLA (Rodilla a pie / pantorrilla descubierta)
+  // Contorno negro de la pantorrilla
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 4.2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(kneeX, kneeY);
+  ctx.lineTo(footX, footY);
+  ctx.stroke();
+
+  // Relleno amarillo de la pantorrilla
+  ctx.strokeStyle = isBehind ? '#d97706' : '#facc15';
+  ctx.lineWidth = 2.8;
+  ctx.beginPath();
+  ctx.moveTo(kneeX, kneeY);
+  ctx.lineTo(footX, footY);
+  ctx.stroke();
+
+  // Rodilla anatómica visible
+  ctx.fillStyle = isBehind ? '#d97706' : '#facc15';
+  ctx.beginPath();
+  ctx.arc(kneeX, kneeY, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 3. Zapatilla / pie estilizado
+  ctx.fillStyle = isBehind ? '#09090b' : '#18181b';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(footX + 3.5, footY, 5.5, 3.2, 0.08, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Detalle de la suela blanca
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath();
+  ctx.ellipse(footX + 3.5, footY + 1.8, 4.5, 1.2, 0.08, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+/**
+ * Dibuja la cabeza del novio con:
+ * - Ojos REDUCIDOS y SEPARADOS horizontalmente (#9333ea púrpura)
+ * - Piel amarilla (#facc15)
+ * - Pelo castaño puntiagudo anime/emo con flequillo (#451a03)
+ * - Oreja con piercings plateados
+ * - Expresión facial cómica
+ */
+function drawGroomHead(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  angle: number,
+  t: number,
+  expression: 'gritted' | 'screaming' | 'focused'
+) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  // 1. Pelo trasero (volumen de picos shaggy)
+  ctx.fillStyle = '#381607';
+  ctx.beginPath();
+  ctx.arc(-2, -6, 17, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Picos traseros del pelo castaño
+  ctx.beginPath();
+  ctx.moveTo(-16, -10);
+  ctx.lineTo(-26, -2);
+  ctx.lineTo(-14, 4);
+  ctx.lineTo(-24, 12);
+  ctx.lineTo(-10, 14);
+  ctx.closePath();
+  ctx.fill();
+
+  // 2. Oreja izquierda con piercings plateados
+  ctx.fillStyle = '#facc15';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(-11, 1, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Piercings metálicos plateados
+  ctx.strokeStyle = '#f8fafc';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(-13, -1, 2.5, Math.PI * 0.5, Math.PI * 1.5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(-13, 3, 2.5, Math.PI * 0.5, Math.PI * 1.5);
+  ctx.stroke();
+
+  // 3. Cabeza redonda amarilla
+  ctx.fillStyle = '#facc15';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(2, 0, 14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 4. OJOS REDUCIDOS Y BIEN SEPARADOS (PÚRPURA / VIOLETA)
+  // Ojo izquierdo (separado hacia la izquierda)
+  ctx.fillStyle = '#9333ea';
+  ctx.strokeStyle = '#3b0764';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.ellipse(-3.5, -1, 2.6, 3.6, -0.05, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Ojo derecho (separado hacia la derecha)
+  ctx.beginPath();
+  ctx.ellipse(8.5, -1, 2.8, 3.8, 0.05, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Destellos blancos sutiles en los ojos
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(-3, -2.2, 0.9, 0, Math.PI * 2);
+  ctx.arc(9, -2.2, 1.0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Nariz sutil entre los ojos separados
+  ctx.strokeStyle = '#b45309';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(2.5, 0);
+  ctx.lineTo(3.5, 2);
+  ctx.lineTo(2, 2.5);
+  ctx.stroke();
+
+  // Cejas expresivas bien ubicadas sobre cada ojo separado
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  if (expression === 'screaming') {
+    ctx.moveTo(-6, -7);
+    ctx.lineTo(-1, -9);
+    ctx.moveTo(6, -9);
+    ctx.lineTo(12, -7);
+  } else {
+    ctx.moveTo(-6, -6);
+    ctx.lineTo(-1, -5);
+    ctx.moveTo(6, -5);
+    ctx.lineTo(12, -7);
+  }
+  ctx.stroke();
+
+  // 5. Boca centrada
+  if (expression === 'screaming') {
+    ctx.fillStyle = '#7f1d1d';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(2.5, 7, 5, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 4, 5, 2);
+  } else {
+    // Dientes apretados centrados
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(-1, 5, 9, 4.5, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(2, 5);
+    ctx.lineTo(2, 9.5);
+    ctx.moveTo(5, 5);
+    ctx.lineTo(5, 9.5);
+    ctx.stroke();
+  }
+
+  // 6. Cabello frontal: Flequillo castaño
+  ctx.fillStyle = '#5c2a10';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1.5;
+
+  ctx.beginPath();
+  ctx.moveTo(-10, -10);
+  ctx.lineTo(-2, -18);
+  ctx.lineTo(6, -18);
+  ctx.lineTo(16, -12);
+  ctx.lineTo(12, -4);
+  ctx.lineTo(6, -8);
+  ctx.lineTo(2, -2);
+  ctx.lineTo(-4, -6);
+  ctx.lineTo(-10, -1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Mechón alzado rebelde
+  const hairSway = Math.sin(t * 14) * 2;
+  ctx.fillStyle = '#783c18';
+  ctx.beginPath();
+  ctx.moveTo(0, -18);
+  ctx.quadraticCurveTo(-6, -28 + hairSway, -12, -26);
+  ctx.quadraticCurveTo(-2, -22, 6, -18);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/**
+ * Novia furiosa (Carrera contra el Altar)
+ * Modelo fiel a la hoja de sprites y referencias:
+ * - Piel morena
+ * - Vestido blanco de novia strapless y velo blanco largo ondulante
+ * - Cabello rizado castaño rojizo voluminoso
+ * - Labios gruesos morados/azulados distintivos
+ * - Ojos saltones gigantescos desorbitados con pupilas locas
+ * - Boca abierta con LENGUA GIGANTE ROJA colgando y aleteando cómicamente
+ * - Ramo de flores nupciales en las manos con pétalos volando
+ */
 function renderBride(
   ctx: CanvasRenderingContext2D,
   _id: string,
@@ -428,115 +946,350 @@ function renderBride(
   t: number
 ) {
   const step = Math.sin(t * 16);
+  const legBob = Math.abs(step);
+  const tongueWobble = Math.sin(t * 22) * 5;
+  const veilWave = Math.sin(t * 12) * 6;
 
-  // Sombra pesada
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  // 1. Sombra en el suelo
+  ctx.fillStyle = 'rgba(0,0,0,0.32)';
   ctx.beginPath();
-  ctx.ellipse(w / 2, h - 2, 24, 7, 0, 0, Math.PI * 2);
+  ctx.ellipse(w / 2 - 2, h - 3, 34, 8, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Pies pisando fuerte
-  ctx.fillStyle = '#ef4444';
-  ctx.fillRect(w / 2 - 16 + step * 4, h - 10, 14, 8);
-  ctx.fillRect(w / 2 + 2 - step * 4, h - 10, 14, 8);
-
-  // Vestido rojo voluminoso y arrugado
-  const dressBob = Math.abs(step) * 4;
-  ctx.fillStyle = '#b91c1c';
+  // 2. Nubes de polvo tras sus pasos pesados
+  const dustPhase = (t * 12) % 1;
+  ctx.fillStyle = 'rgba(226, 232, 240, 0.5)';
   ctx.beginPath();
-  ctx.moveTo(w / 2 - 24, h - 10);
-  ctx.quadraticCurveTo(w / 2 - 28, h - 40, w / 2 - 16, h - 52 - dressBob);
-  ctx.lineTo(w / 2 + 16, h - 52 - dressBob);
-  ctx.quadraticCurveTo(w / 2 + 28, h - 40, w / 2 + 24, h - 10);
+  ctx.arc(w * 0.15 - dustPhase * 16, h - 8 - dustPhase * 6, 6 + dustPhase * 8, 0, Math.PI * 2);
+  ctx.arc(w * 0.22 - dustPhase * 12, h - 14 - dustPhase * 4, 4 + dustPhase * 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 3. Velo largo de novia blanco ondeando hacia atrás (izquierda)
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.42, h * 0.22);
+  ctx.quadraticCurveTo(w * 0.15, h * 0.28 + veilWave, w * 0.02, h * 0.58 + veilWave);
+  ctx.quadraticCurveTo(w * 0.08, h * 0.72 + veilWave, w * 0.22, h * 0.76);
+  ctx.quadraticCurveTo(w * 0.32, h * 0.52, w * 0.48, h * 0.42);
   ctx.closePath();
   ctx.fill();
-
-  // Detalles dorados en el vestido
-  ctx.strokeStyle = '#f59e0b';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(w / 2, h - 14, 18, 0, Math.PI);
   ctx.stroke();
 
-  // Velo de novia rojo ondeando furiosamente hacia atrás
-  ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+  // Pliegues del velo
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(w / 2 - 8, h - 68);
-  ctx.quadraticCurveTo(w / 2 - 36, h - 60, w / 2 - 32, h - 35);
-  ctx.quadraticCurveTo(w / 2 - 14, h - 45, w / 2 - 8, h - 56);
-  ctx.fill();
+  ctx.moveTo(w * 0.38, h * 0.28);
+  ctx.quadraticCurveTo(w * 0.18, h * 0.42 + veilWave, w * 0.06, h * 0.64 + veilWave);
+  ctx.stroke();
+  ctx.restore();
 
-  // Cabeza enfurecida
-  const headY = h - 62 - dressBob;
-  ctx.fillStyle = '#fed7aa';
-  ctx.beginPath();
-  ctx.arc(w / 2, headY, 15, 0, Math.PI * 2);
-  ctx.fill();
+  // 4. Pies / Piernas morenas con pisadas firmes
+  ctx.fillStyle = '#8c5535';
+  ctx.strokeStyle = '#5a341e';
+  ctx.lineWidth = 1.5;
 
-  // Cabello rizado castaño / rojo recogido con tiara
-  ctx.fillStyle = '#451a03';
-  ctx.beginPath();
-  ctx.arc(w / 2, headY - 4, 16, Math.PI * 0.8, Math.PI * 2.2);
-  ctx.fill();
+  const leftFootX = w * 0.32 - step * 10;
+  const rightFootX = w * 0.54 + step * 10;
+  const leftFootY = h - 12 - (step > 0 ? step * 10 : 0);
+  const rightFootY = h - 12 - (step < 0 ? -step * 10 : 0);
 
-  // Tiara dorada de novia
-  ctx.fillStyle = '#fbbf24';
+  // Pie izquierdo
   ctx.beginPath();
-  ctx.moveTo(w / 2 - 10, headY - 14);
-  ctx.lineTo(w / 2 - 5, headY - 20);
-  ctx.lineTo(w / 2, headY - 15);
-  ctx.lineTo(w / 2 + 5, headY - 20);
-  ctx.lineTo(w / 2 + 10, headY - 14);
+  ctx.roundRect(leftFootX, leftFootY, 18, 12, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  // Pie derecho
+  ctx.beginPath();
+  ctx.roundRect(rightFootX, rightFootY, 18, 12, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  // 5. Vestido blanco voluminoso de novia
+  const dressBob = legBob * 5;
+  const bodyY = h * 0.48 - dressBob;
+
+  // Falda ancha con vuelo blanco
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.moveTo(w * 0.3, bodyY + 12);
+  ctx.quadraticCurveTo(w * 0.12, h * 0.75, w * 0.2, h - 8);
+  ctx.lineTo(w * 0.75, h - 8);
+  ctx.quadraticCurveTo(w * 0.85, h * 0.72, w * 0.7, bodyY + 12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Sombreados y pliegues en la falda blanca
+  ctx.fillStyle = '#e2e8f0';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.26, h - 8);
+  ctx.quadraticCurveTo(w * 0.22, h * 0.76, w * 0.34, bodyY + 22);
+  ctx.lineTo(w * 0.4, bodyY + 22);
+  ctx.quadraticCurveTo(w * 0.32, h * 0.78, w * 0.38, h - 8);
   ctx.closePath();
   ctx.fill();
 
-  // Cejas inclinadas de pura furia
+  ctx.beginPath();
+  ctx.moveTo(w * 0.55, h - 8);
+  ctx.quadraticCurveTo(w * 0.58, h * 0.74, w * 0.62, bodyY + 20);
+  ctx.lineTo(w * 0.68, bodyY + 20);
+  ctx.quadraticCurveTo(w * 0.66, h * 0.76, w * 0.68, h - 8);
+  ctx.closePath();
+  ctx.fill();
+
+  // Corset / Torso strapless blanco con escote voluptuoso
+  ctx.fillStyle = '#f8fafc';
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.beginPath();
+  ctx.roundRect(w * 0.32, bodyY - 14, w * 0.42, 28, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  // Escote en corazón con ribete tenue
+  ctx.fillStyle = '#fef08a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(w * 0.43, bodyY - 14, 9, Math.PI, 0);
+  ctx.arc(w * 0.61, bodyY - 14, 9, Math.PI, 0);
+  ctx.stroke();
+
+  // 6. Cabeza grande, redonda y cómica (Piel morena)
+  const headX = w * 0.52;
+  const headY = bodyY - 26;
+
+  // Cabello rizado trasero (volumen de bucles)
+  ctx.fillStyle = '#2d0e06';
+  ctx.beginPath();
+  ctx.arc(headX - 10, headY - 10, 20, 0, Math.PI * 2);
+  ctx.arc(headX - 16, headY + 4, 18, 0, Math.PI * 2);
+  ctx.arc(headX - 8, headY - 22, 17, 0, Math.PI * 2);
+  ctx.arc(headX + 8, headY - 24, 18, 0, Math.PI * 2);
+  ctx.arc(headX + 22, headY - 16, 17, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Cuello y doble mentón cómico
+  ctx.fillStyle = '#8c5535';
+  ctx.strokeStyle = '#5a341e';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(headX, headY + 14, 14, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Rostro ancho
+  ctx.beginPath();
+  ctx.ellipse(headX + 4, headY - 2, 24, 21, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Bucles y rizos castaño rojizo al frente
+  ctx.fillStyle = '#7c2d12'; // Tono rojizo-caoba
+  for (let i = 0; i < 6; i++) {
+    const rx = headX - 18 + i * 8;
+    const ry = headY - 20 + Math.sin(i * 1.5) * 4;
+    ctx.beginPath();
+    ctx.arc(rx, ry, 6.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#b45309'; // Reflejos cobrizos
+  for (let i = 0; i < 4; i++) {
+    const rx = headX - 14 + i * 9;
+    const ry = headY - 24;
+    ctx.beginPath();
+    ctx.arc(rx, ry, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Tiara de novia blanca / diadema con velo
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(headX + 2, headY - 24, 16, 4.5, -0.05, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 7. OJOS SALTONES GIGANTESCOS (Rasgo cómico de la imagen)
+  // Ojo izquierdo (grande y desorbitado)
+  ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 2.5;
+
   ctx.beginPath();
-  ctx.moveTo(w / 2 - 8, headY - 6);
-  ctx.lineTo(w / 2 - 2, headY - 2);
-  ctx.moveTo(w / 2 + 8, headY - 6);
-  ctx.lineTo(w / 2 + 2, headY - 2);
+  ctx.arc(headX - 6, headY - 11, 10, 0, Math.PI * 2);
+  ctx.fill();
   ctx.stroke();
 
-  // Ojos encendidos en cólera
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(w / 2 - 7, headY - 2, 5, 5);
-  ctx.fillRect(w / 2 + 3, headY - 2, 5, 5);
-  ctx.fillStyle = '#b91c1c';
-  ctx.fillRect(w / 2 - 5, headY - 1, 3, 4);
-  ctx.fillRect(w / 2 + 5, headY - 1, 3, 4);
+  // Ojo derecho (aún más salido hacia el frente)
+  ctx.beginPath();
+  ctx.arc(headX + 13, headY - 12, 11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
 
-  // Boca gritando furiosa con dientes apretados
-  ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = '#450a0a';
-  ctx.lineWidth = 1.5;
-  ctx.fillRect(w / 2 - 7, headY + 5, 14, 6);
-  ctx.strokeRect(w / 2 - 7, headY + 5, 14, 6);
+  // Pupilas negras desalineadas / locas mirando al novio y hacia arriba
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.arc(headX - 4, headY - 14, 3.2, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Brazo derecho sosteniendo RODILLO DE COCINA amenazante
-  const rollingPinAngle = Math.sin(t * 14) * 0.5 - 0.4;
+  ctx.beginPath();
+  ctx.arc(headX + 16, headY - 15, 3.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Destellos blancos en los ojos
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(headX - 5, headY - 15, 1.2, 0, Math.PI * 2);
+  ctx.arc(headX + 15, headY - 16, 1.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pestañas gruesas arqueadas
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(headX - 12, headY - 21);
+  ctx.lineTo(headX - 8, headY - 24);
+  ctx.moveTo(headX - 4, headY - 22);
+  ctx.lineTo(headX - 1, headY - 25);
+
+  ctx.moveTo(headX + 8, headY - 23);
+  ctx.lineTo(headX + 12, headY - 26);
+  ctx.moveTo(headX + 17, headY - 23);
+  ctx.lineTo(headX + 22, headY - 26);
+  ctx.stroke();
+
+  // 8. BOCA ENORME ABIERTA CON LABIOS MORADOS Y LENGUA GIGANTE
+  // Cavidad bucal abierta en grito desquiciado
+  ctx.fillStyle = '#3a0808';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(headX + 8, headY + 7, 14, 9, 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Dientes cómicos
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(headX + 1, headY + 1, 5, 4);
+  ctx.fillRect(headX + 7, headY + 1, 5, 4);
+  ctx.fillRect(headX + 13, headY + 2, 4, 3.5);
+
+  // LABIOS GRUESOS CARNOSOS MORADOS/AZULADOS (Detalle clave de la imagen)
+  ctx.strokeStyle = '#556699';
+  ctx.fillStyle = '#556699';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  // Labio superior curvado
+  ctx.beginPath();
+  ctx.moveTo(headX - 6, headY + 4);
+  ctx.quadraticCurveTo(headX + 8, headY - 2, headX + 22, headY + 5);
+  ctx.stroke();
+  // Labio inferior grueso
+  ctx.beginPath();
+  ctx.moveTo(headX - 3, headY + 12);
+  ctx.quadraticCurveTo(headX + 9, headY + 19, headX + 21, headY + 11);
+  ctx.stroke();
+
+  // LENGUA ENORME ROJA COLGANDO Y ALETEANDO HACIA ADELANTE
   ctx.save();
-  ctx.translate(w / 2 + 16, headY + 4);
-  ctx.rotate(rollingPinAngle);
-
-  // Brazo
-  ctx.strokeStyle = '#fed7aa';
-  ctx.lineWidth = 6;
+  ctx.fillStyle = '#ef4444';
+  ctx.strokeStyle = '#b91c1c';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(14, -8);
+  ctx.moveTo(headX + 4, headY + 6);
+  ctx.quadraticCurveTo(headX + 18, headY + 10 + tongueWobble, headX + 26, headY + 22 + tongueWobble);
+  ctx.quadraticCurveTo(headX + 22, headY + 30 + tongueWobble, headX + 12, headY + 24 + tongueWobble);
+  ctx.quadraticCurveTo(headX + 8, headY + 14, headX + 2, headY + 9);
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
 
-  // Rodillo de madera tradicional con mangos
-  ctx.fillStyle = '#d97706'; // Madera cuerpo
-  ctx.fillRect(8, -26, 8, 30);
-  ctx.fillStyle = '#92400e'; // Mango 1
-  ctx.fillRect(10, -32, 4, 7);
-  ctx.fillRect(10, 3, 4, 7); // Mango 2
-
+  // Línea media de la lengua
+  ctx.strokeStyle = '#991b1b';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(headX + 7, headY + 9);
+  ctx.quadraticCurveTo(headX + 16, headY + 14 + tongueWobble, headX + 19, headY + 24 + tongueWobble);
+  ctx.stroke();
   ctx.restore();
+
+  // 9. BRAZOS MORENOS Y RAMO DE FLORES DE NOVIA
+  // Brazo extendido hacia adelante con bouquet nupcial
+  const armSwing = Math.sin(t * 16) * 6;
+  ctx.strokeStyle = '#8c5535';
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(headX + 16, bodyY - 4);
+  ctx.lineTo(w * 0.78, bodyY + 6 + armSwing);
+  ctx.stroke();
+
+  // Manos sosteniendo el ramo
+  ctx.fillStyle = '#8c5535';
+  ctx.beginPath();
+  ctx.arc(w * 0.78, bodyY + 6 + armSwing, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ramo de novia (Bouquet): envoltorio rosa/rojo y flores blancas con centros amarillos
+  const bouquetX = w * 0.82;
+  const bouquetY = bodyY + 4 + armSwing;
+
+  // Papel envoltorio del ramo
+  ctx.fillStyle = '#fb7185';
+  ctx.beginPath();
+  ctx.moveTo(bouquetX - 6, bouquetY + 10);
+  ctx.lineTo(bouquetX + 6, bouquetY + 10);
+  ctx.lineTo(bouquetX, bouquetY + 18);
+  ctx.closePath();
+  ctx.fill();
+
+  // Flores blancas hinchadas (pompón de flores)
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 1.5;
+  for (let a = 0; a < 6; a++) {
+    const fx = bouquetX + Math.cos((a * Math.PI) / 3) * 8;
+    const fy = bouquetY + Math.sin((a * Math.PI) / 3) * 7;
+    ctx.beginPath();
+    ctx.arc(fx, fy, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  // Flor central
+  ctx.beginPath();
+  ctx.arc(bouquetX, bouquetY, 6.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Centros amarillos de las flores
+  ctx.fillStyle = '#facc15';
+  for (let a = 0; a < 6; a++) {
+    const fx = bouquetX + Math.cos((a * Math.PI) / 3) * 8;
+    const fy = bouquetY + Math.sin((a * Math.PI) / 3) * 7;
+    ctx.beginPath();
+    ctx.arc(fx, fy, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.arc(bouquetX, bouquetY, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pétalos volando en el aire por la velocidad de la persecución
+  const petalPhase1 = (t * 4) % 1;
+  const petalPhase2 = (t * 4 + 0.5) % 1;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(bouquetX - 18 - petalPhase1 * 30, bouquetY - 6 - petalPhase1 * 14, 3, 2, petalPhase1 * 3, 0, Math.PI * 2);
+  ctx.ellipse(bouquetX - 28 - petalPhase2 * 35, bouquetY + 8 - petalPhase2 * 10, 3.5, 2, petalPhase2 * 4, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 /** Obstáculo Bajo: Pastel de boda espinoso de 3 pisos */

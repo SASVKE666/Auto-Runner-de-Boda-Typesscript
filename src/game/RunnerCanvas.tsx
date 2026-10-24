@@ -894,13 +894,28 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({
           { animTick: s.animTick }
         );
 
-        // Dibujar Jugador (Novio)
+        // Dibujar Jugador (Novio) con animación enriquecida de salto y agachado
         let playerSpriteId: SpriteId = 'groom_run_0';
         if (s.playerState.isSliding) {
-          playerSpriteId = 'groom_slide';
+          const totalSlideTime = debugRef.current.slideDuration || 0.4;
+          const slideProgress = 1 - Math.max(0, s.playerState.slideTimer / totalSlideTime);
+          if (slideProgress < 0.22) {
+            playerSpriteId = 'groom_slide_0'; // Inicio de agachado
+          } else if (slideProgress < 0.78) {
+            playerSpriteId = 'groom_slide_1'; // Derrape pleno a ras de suelo con chispas
+          } else {
+            playerSpriteId = 'groom_slide_2'; // Recuperación de pie
+          }
         } else if (!s.playerState.isGrounded) {
-          playerSpriteId =
-            s.playerState.vy < 0 ? 'groom_jump' : 'groom_fall';
+          if (s.playerState.isFastFalling) {
+            playerSpriteId = 'groom_fast_fall'; // Caída rápida en picada
+          } else if (s.playerState.vy < -220) {
+            playerSpriteId = 'groom_jump_up'; // Impulso ascendente
+          } else if (s.playerState.vy < 180) {
+            playerSpriteId = 'groom_jump_apex'; // Pose ninja / tuck jump en el ápice
+          } else {
+            playerSpriteId = 'groom_fall'; // Descenso amortiguando
+          }
         } else {
           const runIndex = Math.floor((s.animTick * 12) % 4);
           playerSpriteId = `groom_run_${runIndex}` as SpriteId;

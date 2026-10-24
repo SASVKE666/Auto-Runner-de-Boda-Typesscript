@@ -14,7 +14,7 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ onClose }) => {
                 <div className="space-y-4 text-xs leading-relaxed text-stone-300">
                     <div>
                         <h4 className="font-bold text-white mb-1 uppercase text-amber-300">1. El Peligro</h4>
-                        <p>Tu prometida enfurecida corre tras de ti con un rodillo. Si tropiezas, ella ganará terreno. ¡Si te alcanza, se acabó!</p>
+                        <p>Tu prometida enfurecida corre tras de ti para atraparte. Si tropiezas, ella ganará terreno. ¡Si te alcanza, se acabó!</p>
                     </div>
                     <div>
                         <h4 className="font-bold text-white mb-1 uppercase text-amber-300">2. Controles</h4>
