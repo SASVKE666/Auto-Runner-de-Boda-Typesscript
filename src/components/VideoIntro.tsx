@@ -52,13 +52,15 @@ export const VideoIntro: React.FC<VideoIntroProps> = ({ onComplete }) => {
         <div className="fixed inset-0 bg-black z-50 flex items-center justify-center overflow-hidden">
             <video
                 ref={videoRef}
-                src="../public/assets/intro.mp4"
+                src="/assets/intro.mp4"
                 className="w-full h-full object-contain"
                 onEnded={handleEnd}
                 onError={() => setVideoError(true)}
                 autoPlay
                 playsInline
                 muted={false}
+                preload='auto'
+                crossOrigin='anonymous'
             />
 
             {canSkip && (
