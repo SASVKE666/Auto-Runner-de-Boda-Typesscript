@@ -1,38 +1,51 @@
 import React from 'react';
-import { X, Keyboard } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface HowToPlayModalProps {
-    onClose: () => void;
+  onClose: () => void;
 }
 
+const Row: React.FC<{ icon: string; title: string; children: React.ReactNode }> = ({ icon, title, children }) => (
+  <div className="flex gap-3 items-start">
+    <div className="text-2xl w-9 text-center shrink-0">{icon}</div>
+    <div>
+      <div className="font-display text-[#7a1f3d] text-sm sm:text-base">{title}</div>
+      <div className="text-[#4a1230] text-xs sm:text-sm leading-snug">{children}</div>
+    </div>
+  </div>
+);
+
 export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ onClose }) => {
-    return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-stone-900 border border-stone-700 rounded-2xl max-w-lg w-full p-6 text-stone-200 shadow-2xl relative">
-                <button onClick={onClose} className="absolute top-4 right-4 text-stone-400 hover:text-white"><X className="w-5 h-5" /></button>
-                <h3 className="text-xl font-black text-amber-400 uppercase mb-4 flex items-center gap-2"><span>💒</span> Manual de Fuga</h3>
-                <div className="space-y-4 text-xs leading-relaxed text-stone-300">
-                    <div>
-                        <h4 className="font-bold text-white mb-1 uppercase text-amber-300">1. El Peligro</h4>
-                        <p>Tu prometida enfurecida corre tras de ti para atraparte. Si tropiezas, ella ganará terreno. ¡Si te alcanza, se acabó!</p>
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-white mb-1 uppercase text-amber-300">2. Controles</h4>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            <span className="flex items-center gap-1"><Keyboard className="w-3 h-3" /> Saltar: <kbd className="bg-stone-800 px-1.5 py-0.5 rounded border border-stone-700">Espacio</kbd> / <kbd className="bg-stone-800 px-1.5 py-0.5 rounded border border-stone-700">W</kbd></span>
-                            <span className="flex items-center gap-1">Deslizar: <kbd className="bg-stone-800 px-1.5 py-0.5 rounded border border-stone-700">S</kbd> / <kbd className="bg-stone-800 px-1.5 py-0.5 rounded border border-stone-700">↓</kbd></span>
-                        </div>
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-white mb-1 uppercase text-amber-300">3. Animation Canceling</h4>
-                        <ul className="list-disc pl-4 space-y-1">
-                            <li><strong>Deslizando + Saltar:</strong> Cancela la barrida y salta al instante.</li>
-                            <li><strong>Aire + Deslizar:</strong> Caída Rápida (Fast Fall). Al tocar suelo, te deslizas automáticamente.</li>
-                        </ul>
-                    </div>
-                </div>
-                <button onClick={onClose} className="mt-6 w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black rounded-xl uppercase text-xs tracking-wider transition">¡Entendido, a Correr!</button>
-            </div>
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3" onClick={onClose}>
+      <div
+        className="relative w-full max-w-lg max-h-full overflow-y-auto rounded-3xl border-4 border-[#2a1420] bg-gradient-to-b from-[#fff4e0] to-[#f9c5d3] p-5 shadow-[0_8px_0_#2a1420]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-white/70 border-2 border-[#2a1420]" aria-label="Cerrar">
+          <X className="w-4 h-4 text-[#2a1420]" />
+        </button>
+        <h3 className="font-display text-2xl text-rose-600 mb-3">MANUAL DE FUGA</h3>
+
+        <div className="space-y-3">
+          <Row icon="🍾" title="Vuela con tu jetpack">
+            <b>Mantén presionado</b> (Espacio, ↑, W, clic o toque) para subir. <b>Suelta</b> para caer.
+          </Row>
+          <Row icon="👰" title="La novia te persigue">
+            Cada golpe la acerca. Si el medidor de arriba se vacía, ¡te atrapa! Se aleja un poquito si recoges anillos.
+          </Row>
+          <Row icon="⚡" title="Esquiva los peligros">
+            Luces eléctricas, torres de copas, arañas de cristal y <b>ramos-misil</b>. Cuando aparezca un <b>❤ !</b> al borde derecho, ¡sube o baja, viene un ramo!
+          </Row>
+          <Row icon="💍" title="Anillos">Cada anillo vale 10 puntos. Las rutas de anillos suelen marcar el camino seguro.</Row>
+          <Row icon="💫" title="Power-ups">
+            <b>Velo</b>: aguanta un golpe. <b>Imán</b>: atrae los anillos. <b>Luna de miel</b>: turbo invencible que rompe todo y te aleja de la novia.
+          </Row>
+          <Row icon="⏸️" title="Pausa">Pulsa P o Esc. El juego se pausa solo si cambias de pestaña.</Row>
         </div>
-    );
+
+        <button onClick={onClose} className="btn-primary mt-5 w-full">¡A correr!</button>
+      </div>
+    </div>
+  );
 };

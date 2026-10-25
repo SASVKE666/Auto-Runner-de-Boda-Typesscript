@@ -1,136 +1,163 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { RunnerCanvas, GameStats } from './game/RunnerCanvas';
 import { sound } from './game/sound';
-import { IntroScreen } from './components/IntroScreen';
 import { MainMenu } from './components/MainMenu';
-import { GameHUD } from './components/GameHUD';
 import { GameOverModal } from './components/GameOverModal';
 import { HowToPlayModal } from './components/HowToPlayModal';
-import { VideoIntro } from './components/VideoIntro';
+import { IntroSequence } from './components/IntroSequence';
+
+type Phase = 'intro' | 'menu' | 'playing' | 'gameover';
+
+const STORAGE_BEST = 'novio_en_fuga_best';
+const STORAGE_MUTED = 'novio_en_fuga_muted';
+
+function readNumber(key: string) {
+  try {
+    return Number(localStorage.getItem(key) || '0') || 0;
+  } catch {
+    return 0;
+  }
+}
 
 export default function App() {
-  const [gamePhase, setGamePhase] = useState<'intro' | 'video' | 'menu' | 'playing' | 'gameover'>('intro');
-  const [stats, setStats] = useState<GameStats>({
-    score: 0, distance: 0, coins: 0, combo: 1, speed: 300,
-    brideDistancePct: 100,
-    activePowerups: { shield: false, magnetTimer: 0, boostTimer: 0, multiplierTimer: 0 },
-    isGameOver: false, isPaused: false,
-  });
-
-  const [soundMuted, setSoundMuted] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [phase, setPhase] = useState<Phase>('intro');
   const [gameKey, setGameKey] = useState(1);
-
-  // Clave de localStorage actualizada al nuevo nombre
-  const [highScore, setHighScore] = useState(() => Number(localStorage.getItem('carrera_altar_high_score') || '0'));
-
-  useEffect(() => {
-    if (stats.score > highScore) {
-      setHighScore(stats.score);
-      localStorage.setItem('carrera_altar_high_score', String(stats.score));
+  const [paused, setPaused] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [best, setBest] = useState(() => readNumber(STORAGE_BEST));
+  const [muted, setMuted] = useState(() => {
+    try {
+      return localStorage.getItem(STORAGE_MUTED) === '1';
+    } catch {
+      return false;
     }
-  }, [stats.score, highScore]);
+  });
+  const [lastStats, setLastStats] = useState<GameStats | null>(null);
+  const [newRecord, setNewRecord] = useState(false);
+  const bestRef = useRef(best);
+  bestRef.current = best;
 
-  const toggleSound = () => {
-    setSoundMuted(!soundMuted);
-    sound.enabled = !soundMuted;
-  };
-
-  const handleGameOver = (finalStats: GameStats) => {
-    setStats(finalStats);
-    setGamePhase('gameover');
-  };
-
-  const restartGame = () => {
-    setIsPaused(false);
-    setGamePhase('menu');
-    setGameKey((prev) => prev + 1);
-  };
-
-  // Atajos de teclado globales
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      // Saltar intro con cualquier tecla
-      if (gamePhase === 'intro') {
-        setGamePhase('menu');
+    sound.enabled = !muted;
+    try {
+      localStorage.setItem(STORAGE_MUTED, muted ? '1' : '0');
+    } catch {
+      /* sin almacenamiento */
+    }
+  }, [muted]);
+
+  const play = useCallback(() => {
+    setPaused(false);
+    setNewRecord(false);
+    setGameKey((k) => k + 1);
+    setPhase('playing');
+  }, []);
+
+  const goMenu = useCallback(() => {
+    setPaused(false);
+    setPhase('menu');
+  }, []);
+
+  const handleGameOver = useCallback((stats: GameStats) => {
+    setLastStats(stats);
+    if (stats.distance > bestRef.current) {
+      setNewRecord(bestRef.current > 0);
+      setBest(stats.distance);
+      try {
+        localStorage.setItem(STORAGE_BEST, String(stats.distance));
+      } catch {
+        /* sin almacenamiento */
+      }
+    }
+    setPhase('gameover');
+  }, []);
+
+  // Atajos globales: pausa, y Enter para jugar / reintentar
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (showHelp) {
+        if (e.code === 'Escape') setShowHelp(false);
         return;
       }
-      // Pausar
-      if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gamePhase === 'playing' && !stats.isGameOver) {
-        setIsPaused((p) => !p);
-      }
-      // Reiniciar desde Game Over
-      if (stats.isGameOver && (e.code === 'Space' || e.key === 'Enter')) {
-        restartGame();
+      if (phase === 'playing' && (e.code === 'KeyP' || e.code === 'Escape')) {
+        setPaused((p) => !p);
+      } else if (phase === 'menu' && (e.code === 'Enter' || e.code === 'Space')) {
+        e.preventDefault();
+        play();
+      } else if (phase === 'gameover' && e.code === 'Enter') {
+        play();
       }
     };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [gamePhase, stats.isGameOver]);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [phase, showHelp, play]);
+
+  // Pausa automática al cambiar de pestaña
+  useEffect(() => {
+    const onHide = () => {
+      if (document.hidden && phase === 'playing') setPaused(true);
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, [phase]);
+
+  const inGame = phase === 'playing' || phase === 'gameover';
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-stone-950 text-stone-100 flex flex-col font-sans select-none antialiased">
+    <div className="fixed inset-0 bg-[#1b0a14] flex items-center justify-center overflow-hidden select-none">
+      {inGame && (
+        <div className="relative w-full h-full flex items-center justify-center">
+          <div
+            className="relative max-w-full max-h-full w-full"
+            style={{ aspectRatio: '16 / 9', maxWidth: 'calc(100vh * 16 / 9)' }}
+          >
+            <RunnerCanvas key={gameKey} isPaused={paused || phase === 'gameover'} best={best} onGameOver={handleGameOver} />
 
-      {gamePhase === 'intro' && <IntroScreen onComplete={() => setGamePhase('video')} />}
-
-      {gamePhase === 'video' && <VideoIntro onComplete={() => setGamePhase('menu')} />}
-
-      {gamePhase === 'menu' && (
-        <MainMenu
-          onPlay={() => setGamePhase('playing')}
-          onHowToPlay={() => setShowHowToPlay(true)}
-          highScore={highScore}
-        />
-      )}
-
-      {gamePhase === 'playing' && (
-        <div className="flex flex-col h-full">
-          <GameHUD
-            stats={stats}
-            soundMuted={soundMuted}
-            isPaused={isPaused}
-            onToggleSound={toggleSound}
-            onPause={() => setIsPaused(!isPaused)}
-            onHowToPlay={() => setShowHowToPlay(true)}
-            onReturnToMenu={() => { setIsPaused(false); setGamePhase('menu'); }}
-          />
-
-          <main className="flex-1 min-h-0 flex flex-col justify-center items-center px-2 py-1 w-full relative">
-            <RunnerCanvas
-              key={gameKey}
-              soundEnabled={!soundMuted}
-              isPaused={isPaused}
-              onStatsUpdate={setStats}
-              onGameOver={handleGameOver}
-            />
-
-            {isPaused && !stats.isGameOver && (
-              <div className="absolute inset-0 bg-black/75 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center z-40 p-6">
-                <div className="bg-stone-900 border-2 border-amber-500/60 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl">
-                  <h2 className="text-3xl font-black text-amber-400 mb-2 uppercase">Juego Pausado</h2>
-                  <p className="text-stone-300 text-sm mb-6">Toma aliento, la novia sigue esperando con el rodillo.</p>
-                  <div className="flex flex-col gap-3">
-                    <button onClick={() => setIsPaused(false)} className="w-full py-3 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-stone-950 font-black rounded-xl text-lg transition shadow-lg">Continuar Escapando</button>
-                    <button onClick={() => { setIsPaused(false); setGamePhase('menu'); }} className="w-full py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold rounded-xl transition border border-stone-700">Volver al Menú</button>
-                  </div>
-                </div>
+            {phase === 'playing' && (
+              <div className="absolute bottom-2 right-2 flex gap-2">
+                <button
+                  tabIndex={-1}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setMuted((m) => !m)}
+                  className="p-2 rounded-full bg-black/45 hover:bg-black/65 text-white/90 transition"
+                  aria-label={muted ? 'Activar sonido' : 'Silenciar'}
+                >
+                  {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                </button>
+                <button
+                  tabIndex={-1}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setPaused((p) => !p)}
+                  className="p-2 rounded-full bg-black/45 hover:bg-black/65 text-white/90 transition"
+                  aria-label={paused ? 'Continuar' : 'Pausar'}
+                >
+                  {paused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+                </button>
               </div>
             )}
-          </main>
 
-          <footer className="bg-stone-900/80 border-t border-stone-800 px-4 py-3 text-xs text-stone-400">
-            <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <span className="text-stone-500">Tecla <kbd className="bg-stone-800 px-1 rounded">D</kbd> para Panel Debug en el juego</span>
+            {paused && phase === 'playing' && (
+              <div className="absolute inset-0 bg-[#2a0b1d]/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 p-4">
+                <h2 className="font-display text-4xl sm:text-5xl text-amber-300 drop-shadow-[0_3px_0_#2a1420]">PAUSA</h2>
+                <p className="text-rose-100/90 text-sm sm:text-base text-center">La novia se detuvo a arreglarse el velo...</p>
+                <button onClick={() => setPaused(false)} className="btn-primary w-64">Seguir huyendo</button>
+                <button onClick={() => setShowHelp(true)} className="btn-secondary w-64">Cómo jugar</button>
+                <button onClick={goMenu} className="btn-secondary w-64">Menú principal</button>
               </div>
-            </div>
-          </footer>
+            )}
+          </div>
+
+          {phase === 'gameover' && lastStats && (
+            <GameOverModal stats={lastStats} best={best} newRecord={newRecord} onRetry={play} onMenu={goMenu} />
+          )}
         </div>
       )}
 
-      {gamePhase === 'gameover' && <GameOverModal stats={stats} highScore={highScore} onRestart={restartGame} />}
-      {showHowToPlay && <HowToPlayModal onClose={() => setShowHowToPlay(false)} />}
+      {phase === 'intro' && <IntroSequence onComplete={goMenu} />}
+
+      {phase === 'menu' && <MainMenu onPlay={play} onHowToPlay={() => setShowHelp(true)} best={best} />}
+      {showHelp && <HowToPlayModal onClose={() => setShowHelp(false)} />}
     </div>
   );
 }

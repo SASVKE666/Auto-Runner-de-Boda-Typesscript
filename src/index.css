@@ -1,1 +1,31 @@
 @import "tailwindcss";
+
+@theme {
+  --font-display: "Titan One", "Arial Black", Impact, system-ui, sans-serif;
+  --font-sans: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #1b0a14;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  .btn-primary {
+    @apply font-display text-lg text-[#2a1420] bg-amber-300 hover:bg-amber-200 active:translate-y-[3px] rounded-2xl px-5 py-2.5 border-[3px] border-[#2a1420] shadow-[0_5px_0_#2a1420] active:shadow-[0_2px_0_#2a1420] transition-all;
+  }
+  .btn-secondary {
+    @apply font-display text-base text-rose-50 bg-rose-600/90 hover:bg-rose-500 active:translate-y-[3px] rounded-2xl px-5 py-2 border-[3px] border-[#2a1420] shadow-[0_4px_0_#2a1420] active:shadow-[0_1px_0_#2a1420] transition-all;
+  }
+  .btn-secondary-light {
+    @apply font-display text-base text-[#2a1420] bg-white/80 hover:bg-white active:translate-y-[3px] rounded-2xl px-5 py-2 border-[3px] border-[#2a1420] shadow-[0_4px_0_#2a1420] active:shadow-[0_1px_0_#2a1420] transition-all;
+  }
+}
