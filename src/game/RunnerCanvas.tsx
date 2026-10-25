@@ -1349,6 +1349,7 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({
                   'obstacle_chandelier',
                   'obstacle_garland',
                   'obstacle_bell',
+                  'obstacle_mid_arch'
                 ];
                 const spr =
                   highSprites[Math.floor(Math.random() * highSprites.length)];
@@ -1369,6 +1370,7 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({
                   'obstacle_cake',
                   'obstacle_flowers',
                   'obstacle_champagne',
+                  'obstacle_double_cake'
                 ];
                 const spr =
                   lowSprites[Math.floor(Math.random() * lowSprites.length)];

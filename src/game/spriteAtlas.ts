@@ -33,7 +33,9 @@ export type SpriteId =
   | 'powerup_magnet'
   | 'powerup_boost'
   | 'powerup_multiplier'
-  | 'coin_ring';
+  | 'coin_ring'
+  | 'obstacle_double_cake'
+  | 'obstacle_mid_arch';
 
 export interface SpriteDef {
   id: SpriteId;
@@ -70,6 +72,9 @@ export const SPRITE_DEFINITIONS: Record<SpriteId, SpriteDef> = {
   obstacle_chandelier: { id: 'obstacle_chandelier', width: 58, height: 70, anchorX: 0.5, anchorY: 0.0 }, // Cuelga del techo
   obstacle_garland: { id: 'obstacle_garland', width: 72, height: 60, anchorX: 0.5, anchorY: 0.0 },
   obstacle_bell: { id: 'obstacle_bell', width: 54, height: 64, anchorX: 0.5, anchorY: 0.0 },
+  obstacle_double_cake: { id: 'obstacle_double_cake', width: 90, height: 52, anchorX: 0.5, anchorY: 1.0 }, // Dos pasteles juntos (más ancho, requiere salto preciso)
+  obstacle_mid_arch: { id: 'obstacle_mid_arch', width: 60, height: 80, anchorX: 0.5, anchorY: 1.0 }, // Arco a nivel del suelo (requiere agacharse sí o sí)
+
 
   powerup_shield: { id: 'powerup_shield', width: 36, height: 36, anchorX: 0.5, anchorY: 0.5 },
   powerup_magnet: { id: 'powerup_magnet', width: 36, height: 36, anchorX: 0.5, anchorY: 0.5 },
@@ -180,6 +185,17 @@ function renderCustomSprite(
     return;
   }
 
+  if (id === 'obstacle_double_cake') {
+    renderDoubleCake(ctx, w, h);
+    return;
+  }
+
+  if (id === 'obstacle_mid_arch') {
+    renderMidArch(ctx, w, h);
+    return;
+  }
+
+
   // ================= POWER-UPS =================
   if (id.startsWith('powerup_')) {
     renderPowerupIcon(ctx, id, w, h, t);
@@ -193,17 +209,7 @@ function renderCustomSprite(
   }
 }
 
-/**
- * Novio corredor (Protagonista)
- * Modelo fiel a las imágenes de referencia y spritesheet:
- * - Piel amarilla cómica
- * - Pelo castaño estilo anime/emo puntiagudo con flequillo
- * - Ojos grandes púrpura / violeta eléctrico
- * - Oreja con piercings plateados
- * - Torso amarillo sin camisa con boxers carbón
- * - Animaciones ricas de Salto (subida, ápice acrobático tuck-jump, caída, fast-fall en picada)
- * - Animaciones ricas de Agacharse/Deslizarse (agachado inicial, derrape a ras de suelo con chispas de fricción, y recuperación)
- */
+
 function renderGroom(
   ctx: CanvasRenderingContext2D,
   id: string,
@@ -237,7 +243,7 @@ function renderGroom(
   }
 
   // =========================================================================
-  // 1. ANIMACIÓN DE DESLIZAMIENTO / AGACHARSE (PANTALONES SIEMPRE VISIBLES)
+  // 1. ANIMACIÓN DE DESLIZAMIENTO / AGACHARSE 
   // =========================================================================
   if (isAnySlide) {
     // Sombra baja alargada en el piso
@@ -1678,4 +1684,95 @@ function drawStar(
   }
   ctx.lineTo(cx, cy - outerRadius);
   ctx.closePath();
+}
+
+/** Obstáculo Bajo Doble: Dos pasteles de boda juntos (más ancho, requiere salto preciso) */
+function renderDoubleCake(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  // Base / Plato plateado extendido
+  ctx.fillStyle = '#cbd5e1';
+  ctx.beginPath();
+  ctx.ellipse(w / 2, h - 4, w / 2 - 2, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pastel 1 (Izquierda)
+  ctx.fillStyle = '#f8fafc';
+  ctx.strokeStyle = '#f43f5e';
+  ctx.lineWidth = 2;
+  ctx.fillRect(w * 0.08, h - 22, w * 0.36, 18);
+  ctx.strokeRect(w * 0.08, h - 22, w * 0.36, 18);
+  ctx.fillStyle = '#fb7185'; // Betún
+  ctx.fillRect(w * 0.08, h - 24, w * 0.36, 4);
+  // Piso superior 1
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(w * 0.14, h - 34, w * 0.24, 12);
+  ctx.strokeRect(w * 0.14, h - 34, w * 0.24, 12);
+
+  // Pastel 2 (Derecha)
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(w * 0.56, h - 22, w * 0.36, 18);
+  ctx.strokeRect(w * 0.56, h - 22, w * 0.36, 18);
+  ctx.fillStyle = '#fb7185';
+  ctx.fillRect(w * 0.56, h - 24, w * 0.36, 4);
+  // Piso superior 2
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(w * 0.62, h - 34, w * 0.24, 12);
+  ctx.strokeRect(w * 0.62, h - 34, w * 0.24, 12);
+
+  // Decoración de espinas/rosas en el medio para hacerlo peligroso
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.42, h - 22);
+  ctx.lineTo(w * 0.5, h - 32);
+  ctx.lineTo(w * 0.58, h - 22);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#7f1d1d';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+/** Obstáculo Medio: Arco nupcial bajo (requiere agacharse/deslizarse sí o sí) */
+function renderMidArch(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  // Base de madera oscura en el suelo
+  ctx.fillStyle = '#451a03';
+  ctx.fillRect(w * 0.1, h - 8, w * 0.8, 8);
+
+  // Columnas laterales del arco
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(w * 0.1, h - 80, 12, 72);
+  ctx.fillRect(w * 0.8 - 12, h - 80, 12, 72);
+
+  // Arco superior (la parte que golpea si no te agachas)
+  ctx.fillStyle = '#92400e';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.1, h - 80);
+  ctx.quadraticCurveTo(w / 2, h - 105, w * 0.9, h - 80);
+  ctx.lineTo(w * 0.9, h - 70);
+  ctx.quadraticCurveTo(w / 2, h - 95, w * 0.1, h - 70);
+  ctx.closePath();
+  ctx.fill();
+
+  // Contorno del arco
+  ctx.strokeStyle = '#451a03';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Decoración de flores colgando del arco (estilo nupcial)
+  ctx.fillStyle = '#ec4899';
+  ctx.beginPath();
+  ctx.arc(w / 2, h - 92, 9, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#f43f5e';
+  ctx.beginPath();
+  ctx.arc(w / 2 - 12, h - 84, 7, 0, Math.PI * 2);
+  ctx.arc(w / 2 + 12, h - 84, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Brillos en las flores
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(w / 2 - 3, h - 95, 2, 0, Math.PI * 2);
+  ctx.arc(w / 2 - 14, h - 86, 1.5, 0, Math.PI * 2);
+  ctx.fill();
 }
