@@ -17,6 +17,15 @@ npm run build
 npm run lint    # tsc --noEmit
 ```
 
+## Video de intro
+`public/assets/intro.mp4` es el video original y **se conserva tal cual**. Para que cargue en cualquier navegador, celular o IDE, la intro prueba estos formatos en orden (`src/components/IntroSequence.tsx`):
+
+1. `src/assets/video/intro-compat.mp4`: mismo video, H.264 + una sola pista AAC (el original trae AAC y AC-3).
+2. `src/assets/video/intro.webm`: VP9 + Opus, para navegadores sin códecs propietarios.
+3. `public/assets/intro.mp4`: el original, como último recurso.
+
+Las rutas de 1 y 2 las resuelve Vite (con `base: './'` en `vite.config.ts`), así que no dependen de dónde se sirva el proyecto. Si el video no se puede reproducir, se muestra un aviso con "Reintentar" y "Continuar" en vez de saltarlo en silencio.
+
 ## Estructura
 - `src/game/engine.ts` – lógica y dibujo del juego (sin React).
 - `src/game/constants.ts` – tamaños, colores, zonas, textos y valores de power-ups.
