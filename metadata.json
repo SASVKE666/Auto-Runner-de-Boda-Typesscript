@@ -1,6 +1,6 @@
 {
-  "name": "Carrera contra el Altar - Auto-Runner de Boda",
-  "description": "Juego 2D Auto-Runner donde un novio escapa de su furiosa novia a través de una fiesta caótica.",
+  "name": "Novio en Fuga",
+  "description": "Runner de scroll lateral estilo Jetpack Joyride: un novio arrepentido huye de su furiosa novia con un jetpack de champaña.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

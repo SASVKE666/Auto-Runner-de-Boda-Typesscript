@@ -1,32 +1,64 @@
-import React from 'react';
-import { Trophy } from 'lucide-react';
-import { GameStats } from '../game/RunnerCanvas';
+import React, { useMemo } from 'react';
+import { GameStats } from '../game/engine';
 
 interface GameOverModalProps {
-    stats: GameStats;
-    highScore: number;
-    onRestart: () => void;
+  stats: GameStats;
+  best: number;
+  newRecord: boolean;
+  onRetry: () => void;
+  onMenu: () => void;
 }
 
-export const GameOverModal: React.FC<GameOverModalProps> = ({ stats, highScore, onRestart }) => {
-    return (
-        <div className="absolute inset-0 bg-black/85 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center z-40 p-6 animate-in fade-in duration-200">
-            <div className="bg-gradient-to-b from-stone-900 to-stone-950 border-2 border-rose-600/80 p-6 sm:p-8 rounded-2xl max-w-lg w-full text-center shadow-2xl shadow-rose-950/50">
-                <div className="w-16 h-16 rounded-full bg-rose-600/20 border-2 border-rose-500 flex items-center justify-center mx-auto mb-4 text-3xl">💀</div>
-                <h2 className="text-2xl sm:text-4xl font-black text-rose-500 uppercase tracking-tight mb-1">¡Te Atrapó la Novia!</h2>
-                <p className="text-stone-300 text-sm mb-6 font-medium">¡No pudiste escapar del altar! La furiosa novia te atrapó con su ramo nupcial.</p>
+function verdict(m: number): string {
+  if (m < 100) return 'Ni siquiera llegaste al brindis. La novia ni sudó.';
+  if (m < 300) return '"Solo iba por cigarros", dijiste. Nadie te creyó.';
+  if (m < 600) return 'Casi sales del salón... La suegra ya te tenía vigilado.';
+  if (m < 1000) return 'Llegaste hasta el jardín, pero las rosas tenían espinas.';
+  if (m < 1600) return 'Pisaste la catedral. El cura ya te estaba esperando.';
+  return '¡Leyenda! Pero igual hubo boda... y muy bonita.';
+}
 
-                <div className="grid grid-cols-2 gap-3 bg-stone-900/90 border border-stone-800 p-4 rounded-xl mb-6 text-left">
-                    <div><span className="text-xs text-stone-400 uppercase font-bold block">Puntuación</span><span className="font-mono text-xl sm:text-2xl font-black text-amber-400">{stats.score.toLocaleString()}</span></div>
-                    <div><span className="text-xs text-stone-400 uppercase font-bold block">Distancia</span><span className="font-mono text-xl sm:text-2xl font-black text-rose-400">{stats.distance} m</span></div>
-                    <div><span className="text-xs text-stone-400 uppercase font-bold block">Anillos</span><span className="font-mono text-lg font-black text-stone-200">💍 {stats.coins}</span></div>
-                    <div><span className="text-xs text-stone-400 uppercase font-bold block">Récord</span><span className="font-mono text-lg font-black text-emerald-400">🏆 {highScore.toLocaleString()}</span></div>
-                </div>
+export const GameOverModal: React.FC<GameOverModalProps> = ({ stats, best, newRecord, onRetry, onMenu }) => {
+  const text = useMemo(() => verdict(stats.distance), [stats.distance]);
+  return (
+    <div className="absolute inset-0 z-40 bg-[#2a0b1d]/75 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-3xl border-4 border-[#2a1420] bg-gradient-to-b from-[#fff4e0] to-[#f9c5d3] p-5 sm:p-7 text-center shadow-[0_8px_0_#2a1420]">
+        <div className="text-5xl mb-1">💒</div>
+        <h2 className="font-display text-3xl sm:text-4xl text-rose-600 drop-shadow-[0_2px_0_#fff]">¡SÍ, ACEPTO!</h2>
+        <p className="mt-1 text-[#4a1230] text-sm font-semibold">{text}</p>
 
-                <button onClick={onRestart} className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-stone-950 font-black rounded-xl text-lg uppercase tracking-wide transition shadow-xl shadow-rose-600/30 active:scale-98">
-                    Volver al Menú
-                </button>
-            </div>
+        {newRecord && (
+          <div className="mt-3 inline-block px-3 py-1 rounded-full bg-amber-300 border-2 border-[#2a1420] font-display text-[#2a1420] text-sm animate-bounce">
+            ★ ¡NUEVO RÉCORD! ★
+          </div>
+        )}
+
+        <div className="mt-4 grid grid-cols-3 gap-2 text-[#2a1420]">
+          <div className="rounded-xl bg-white/70 border-2 border-[#2a1420] py-2">
+            <div className="text-[10px] font-bold uppercase text-rose-700">Distancia</div>
+            <div className="font-display text-xl">{stats.distance} m</div>
+          </div>
+          <div className="rounded-xl bg-white/70 border-2 border-[#2a1420] py-2">
+            <div className="text-[10px] font-bold uppercase text-rose-700">Anillos</div>
+            <div className="font-display text-xl">💍 {stats.coins}</div>
+          </div>
+          <div className="rounded-xl bg-white/70 border-2 border-[#2a1420] py-2">
+            <div className="text-[10px] font-bold uppercase text-rose-700">Mejor</div>
+            <div className="font-display text-xl">{best} m</div>
+          </div>
         </div>
-    );
+        <div className="mt-3 font-display text-[#2a1420]">
+          PUNTOS: <span className="text-rose-600 text-2xl">{stats.score.toLocaleString()}</span>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2.5">
+          <button onClick={onRetry} className="btn-primary">¡Intentar escapar otra vez!</button>
+          <button onClick={onMenu} className="btn-secondary-light">Menú principal</button>
+        </div>
+        <p className="mt-3 text-xs text-[#4a1230]/70">
+          Pulsa <kbd className="px-1 rounded bg-white/70 border border-[#2a1420]/30">Enter</kbd> para reintentar
+        </p>
+      </div>
+    </div>
+  );
 };
