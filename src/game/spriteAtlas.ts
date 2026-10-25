@@ -833,11 +833,11 @@ function drawGroomHead(
   ctx.fill();
   ctx.stroke();
 
-  // Destellos blancos sutiles en los ojos
+  // Destellos blancos sutiles en los ojos (reducidos)
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
-  ctx.arc(-3, -2.2, 0.9, 0, Math.PI * 2);
-  ctx.arc(9, -2.2, 1.0, 0, Math.PI * 2);
+  ctx.arc(-3, -2.2, 0.65, 0, Math.PI * 2);
+  ctx.arc(9, -2.2, 0.75, 0, Math.PI * 2);
   ctx.fill();
 
   // Nariz sutil entre los ojos separados

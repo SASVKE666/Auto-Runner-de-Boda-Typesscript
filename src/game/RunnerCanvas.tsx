@@ -86,6 +86,893 @@ interface FloatingText {
   scale: number;
 }
 
+/**
+ * Renderizador Chibi Cartoon de Alta Fidelidad para el Corredor (Novio)
+ * Cumple con todas las especificaciones de diseño:
+ * 1. Cabeza grande estilo cartoon chibi:
+ *    - Piel amarilla brillante (#F4D03F)
+ *    - Ojos púrpuras GRANDES y expresivos (#9B59B6 / #8E44AD), separación de 14px, brillo blanco doble
+ *    - Cejas negras gruesas (3px) y puente nasal sutil
+ * 2. Cabello café oscuro (#5C3317 / #6B4423), estilo spiky con volumen superior y flequillo
+ * 3. Chaqueta a cuadros grises y negros (checkerboard #2C2C2C y #5A5A5A) + camiseta interior cyan (#06B6D4)
+ * 4. Pants azul marino (#1E3A8A) con piernas delgadas cartoon y zapatos deportivos grises con suela blanca (#6B7280 y #FFFFFF)
+ * 5. Outlines gruesos negros (3-4px) y animación facial según acción
+ * 6. Pivot estricto en los pies (bottom-center)
+ */
+
+/**
+ * VISTA LATERAL (SIDE VIEW - ESTILO JETPACK JOYRIDE):
+ * Dibuja la chaqueta a cuadros vista de perfil.
+ * - Espalda hacia la izquierda (-X), pecho hacia la derecha (+X)
+ * - Camiseta interior cyan (#06B6D4) visible al frente/cuello
+ * - Patrón checkerboard (#2C2C2C y #5A5A5A)
+ */
+function drawCheckerboardJacketSideView(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  torsoW = 46, // Ancho de perfil
+  torsoH = 55, // 25% del cuerpo
+  angle = 0
+) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  const halfW = torsoW / 2;
+  const halfH = torsoH / 2;
+
+  // Silueta lateral de perfil: espalda a la izquierda, pecho y solapa al frente a la derecha
+  ctx.beginPath();
+  ctx.moveTo(-halfW + 4, -halfH + 3); // Hombro trasero
+  ctx.quadraticCurveTo(0, -halfH, halfW - 2, -halfH + 5); // Cuello y hombro delantero
+  ctx.quadraticCurveTo(halfW + 8, 0, halfW - 1, halfH - 2); // Pecho hacia abdomen
+  ctx.lineTo(-halfW + 5, halfH); // Cintura
+  ctx.quadraticCurveTo(-halfW - 4, 0, -halfW + 4, -halfH + 3); // Espalda arqueada
+  ctx.closePath();
+
+  // 1. Relleno base oscuro (#2C2C2C)
+  ctx.fillStyle = '#2c2c2c';
+  ctx.fill();
+
+  // 2. Patrón checkerboard visible en grises (#5A5A5A sobre #2C2C2C)
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = '#5a5a5a';
+  const sq = 12;
+  for (let row = -3; row <= 3; row++) {
+    for (let col = -3; col <= 3; col++) {
+      if ((row + col) % 2 === 0) {
+        ctx.fillRect(col * sq, row * sq, sq, sq);
+      }
+    }
+  }
+  ctx.restore();
+
+  // 3. Camiseta interior color turquesa/cyan (#06B6D4) visible al frente en perfil
+  ctx.fillStyle = '#06b6d4';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(halfW - 12, -halfH + 2);
+  ctx.lineTo(halfW - 1, -halfH + 6);
+  ctx.lineTo(halfW - 3, -halfH + 18);
+  ctx.lineTo(halfW - 13, -halfH + 12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // 4. Solapa de la chaqueta en perfil
+  ctx.strokeStyle = '#18181b';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(halfW - 13, -halfH + 2);
+  ctx.lineTo(halfW - 5, -halfH + 20);
+  ctx.lineTo(halfW - 7, halfH - 3);
+  ctx.stroke();
+
+  // 5. Outlines negros gruesos estilo cartoon
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 7;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/**
+ * Cuello visto de perfil conectando suavemente cabeza y torso lateral
+ */
+function drawChibiNeckSideView(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  neckW = 24,
+  neckH = 14,
+  angle = 0
+) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  const halfW = neckW / 2;
+  const halfH = neckH / 2;
+
+  ctx.fillStyle = '#f4d03f';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.roundRect(-halfW, -halfH, neckW, neckH, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  // Sombra posterior
+  ctx.fillStyle = '#eab308';
+  ctx.beginPath();
+  ctx.rect(-halfW, -halfH, 6, neckH);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+/**
+ * Pierna en vista lateral de perfil:
+ * - Pants azul marino (#1E3A8A o #172554 si está detrás)
+ * - Rodilla articulada visible
+ * - Zapato deportivo gris de perfil con suela blanca apuntando a la derecha (+X)
+ */
+function drawChibiLegSideView(
+  ctx: CanvasRenderingContext2D,
+  hipX: number,
+  hipY: number,
+  kneeX: number,
+  kneeY: number,
+  footX: number,
+  footY: number,
+  isBehind: boolean
+) {
+  ctx.save();
+
+  const pantsColor = isBehind ? '#172554' : '#1e3a8a';
+  const pantsHighlight = isBehind ? '#1e3a8a' : '#2563eb';
+
+  // Curva Bézier en pantorrilla para dar volumen muscular de perfil
+  const calfDx = footX - kneeX;
+  const calfDy = footY - kneeY;
+  const calfDist = Math.hypot(calfDx, calfDy) || 1;
+  const normX = -calfDy / calfDist;
+  const normY = calfDx / calfDist;
+  const ctrlX = (kneeX + footX) / 2 + normX * 4;
+  const ctrlY = (kneeY + footY) / 2 + normY * 4;
+
+  // 1. Muslo (Thigh)
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 22;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(hipX, hipY);
+  ctx.lineTo(kneeX, kneeY);
+  ctx.stroke();
+
+  ctx.strokeStyle = pantsColor;
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  ctx.moveTo(hipX, hipY);
+  ctx.lineTo(kneeX, kneeY);
+  ctx.stroke();
+
+  // 2. Pantorrilla (Calf)
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 18;
+  ctx.beginPath();
+  ctx.moveTo(kneeX, kneeY);
+  ctx.quadraticCurveTo(ctrlX, ctrlY, footX, footY);
+  ctx.stroke();
+
+  ctx.strokeStyle = pantsColor;
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  ctx.moveTo(kneeX, kneeY);
+  ctx.quadraticCurveTo(ctrlX, ctrlY, footX, footY);
+  ctx.stroke();
+
+  // 3. Rodilla articulada visible
+  ctx.fillStyle = pantsHighlight;
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(kneeX + 1, kneeY, 6.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 4. Zapato deportivo de perfil mirando hacia la derecha (+X)
+  const shoeColor = isBehind ? '#4b5563' : '#6b7280';
+  ctx.fillStyle = shoeColor;
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 5;
+
+  // Silueta del tenis lateral
+  ctx.beginPath();
+  ctx.moveTo(footX - 10, footY - 3); // Talón superior
+  ctx.lineTo(footX - 12, footY + 4); // Talón base
+  ctx.lineTo(footX + 18, footY + 4); // Puntera base
+  ctx.quadraticCurveTo(footX + 20, footY - 2, footX + 16, footY - 5); // Puntera delantera
+  ctx.lineTo(footX + 4, footY - 7); // Empeine
+  ctx.lineTo(footX - 4, footY - 7); // Tobillo
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Suela blanca gruesa (#FFFFFF) en la base
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(footX - 12, footY + 1.5, 30, 4.5, 1.5);
+  ctx.fill();
+  ctx.stroke();
+
+  // Lengüeta blanca
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(footX + 2, footY - 6.5, 5, 3);
+
+  ctx.restore();
+}
+
+/**
+ * Cinemática de carrera lateral (Jetpack Joyride stride):
+ * Las piernas se alternan (una adelante impulsando, otra atrás flexionando la rodilla)
+ */
+function drawNaturalChibiLegSideView(
+  ctx: CanvasRenderingContext2D,
+  hipX: number,
+  hipY: number,
+  phase: number,
+  isBehind: boolean
+) {
+  const sin = Math.sin(phase);
+  // Zancada amplia de perfil estilo Jetpack Joyride
+  const thighAngle = sin * 0.85;
+
+  // Rodilla se flexiona hacia arriba/atrás cuando la pierna retrocede
+  const kneeBend = phase < Math.PI
+    ? Math.max(0, sin * 0.45)
+    : Math.max(0, -sin * 1.35);
+
+  const thighLen = 34; // 35% proporciones Jetpack
+  const calfLen = 43;
+
+  const kneeX = hipX + Math.sin(thighAngle) * thighLen;
+  const kneeY = hipY + Math.cos(thighAngle) * thighLen;
+
+  const calfAngle = thighAngle - kneeBend;
+  const footX = kneeX + Math.sin(calfAngle) * calfLen;
+  const footY = Math.min(0, kneeY + Math.cos(calfAngle) * calfLen);
+
+  drawChibiLegSideView(ctx, hipX, hipY, kneeX, kneeY, footX, footY, isBehind);
+}
+
+/**
+ * VISTA LATERAL: Solo el brazo derecho es visible (el izquierdo está oculto tras el torso)
+ * Hombro, codo y mano articulados en línea con flexión atlética.
+ * Balanceo rítmico hacia adelante y atrás.
+ */
+function drawChibiArmSideView(
+  ctx: CanvasRenderingContext2D,
+  shoulderX: number,
+  shoulderY: number,
+  armAngle: number,
+  length = 52
+) {
+  ctx.save();
+  ctx.translate(shoulderX, shoulderY);
+  ctx.rotate(armAngle);
+
+  const upperL = 25;
+  const lowerL = 27;
+
+  // Ligera flexión en el codo para postura atlética
+  const elbowBend = 0.28;
+  const elbowX = 0;
+  const elbowY = upperL;
+  const handX = elbowX + Math.sin(elbowBend) * lowerL;
+  const handY = elbowY + Math.cos(elbowBend) * lowerL;
+
+  // 1. Manga superior a cuadros (#2C2C2C)
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 18;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(elbowX, elbowY);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#2c2c2c';
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(elbowX, elbowY);
+  ctx.stroke();
+
+  // Cuadro decorativo en manga
+  ctx.fillStyle = '#5a5a5a';
+  ctx.beginPath();
+  ctx.arc(0, upperL * 0.5, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Articulación de codo visible
+  ctx.fillStyle = '#3f3f46';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(elbowX, elbowY, 7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 3. Antebrazo
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  ctx.moveTo(elbowX, elbowY);
+  ctx.lineTo(handX, handY);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#2c2c2c';
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.moveTo(elbowX, elbowY);
+  ctx.lineTo(handX, handY);
+  ctx.stroke();
+
+  // 4. Puño / Mano cartoon amarilla (#F4D03F) con pulgar visible al frente (+X)
+  ctx.fillStyle = '#f4d03f';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(handX, handY, 9.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Pulgar cartoon al frente
+  ctx.beginPath();
+  ctx.arc(handX + 5, handY - 2, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/**
+ * VISTA LATERAL (SIDE VIEW) DE LA CABEZA:
+ * - Perfil lateral visto desde el lado, mirando a la derecha (+X)
+ * - Forma ovalada alargada horizontalmente
+ * - Nariz visible de perfil sobresaliendo adelante
+ * - UN SOLO OJO visible (el del lado derecho)
+ * - Oreja visible en el lado posterior/izquierdo con piercings plateados
+ * - Cabello soplado hacia atrás por el movimiento (wind effect)
+ */
+function drawChibiHeadSideView(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  angle: number,
+  t: number,
+  expression: 'running' | 'fast_running' | 'jumping' | 'falling' | 'sliding',
+  speed: number
+) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  // Efecto dinámico de viento en el cabello que responde a la velocidad del juego
+  const windIntensity = Math.min(1.5, 0.8 + speed / 600);
+  const windWave1 = Math.sin(t * 16) * 4 * windIntensity;
+  const windWave2 = Math.cos(t * 14 + 1) * 4 * windIntensity;
+  const windWave3 = Math.sin(t * 18 + 2) * 5 * windIntensity;
+
+  // 1. CABELLO TRASERO SOPLADO POR EL VIENTO (Wind effect hacia atrás -X)
+  ctx.fillStyle = '#5c3317';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 7;
+  ctx.lineJoin = 'round';
+
+  ctx.beginPath();
+  ctx.moveTo(-18, -32);
+  ctx.lineTo(-48 + windWave1, -38);
+  ctx.lineTo(-32, -22);
+  ctx.lineTo(-58 + windWave2, -18);
+  ctx.lineTo(-34, -4);
+  ctx.lineTo(-52 + windWave3, 6);
+  ctx.lineTo(-28, 16);
+  ctx.lineTo(-12, 28);
+  ctx.lineTo(8, 30);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Reflejo café claro en pelo trasero (#6B4423)
+  ctx.fillStyle = '#6b4423';
+  ctx.beginPath();
+  ctx.moveTo(-20, -28);
+  ctx.lineTo(-44 + windWave1, -32);
+  ctx.lineTo(-28, -16);
+  ctx.closePath();
+  ctx.fill();
+
+  // 2. OREJA VISIBLE EN EL LADO IZQUIERDO/POSTERIOR DE LA CABEZA (x = -18, y = 4)
+  ctx.fillStyle = '#f4d03f';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.ellipse(-18, 4, 9, 13, -0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = '#eab308';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(-17, 3, 5, -Math.PI * 0.4, Math.PI * 0.6);
+  ctx.stroke();
+
+  // Piercings metálicos plateados
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(-22, 1, 3.5, Math.PI * 0.5, Math.PI * 1.5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(-22, 7, 3.5, Math.PI * 0.5, Math.PI * 1.5);
+  ctx.stroke();
+
+  // 3. SILUETA FACIAL DE PERFIL (Forma ovalada alargada con NARIZ DE PERFIL)
+  ctx.fillStyle = '#f4d03f';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 7.5;
+  ctx.lineJoin = 'round';
+
+  ctx.beginPath();
+  ctx.moveTo(-6, -34);
+  ctx.quadraticCurveTo(18, -34, 28, -18); // Frente lisa de perfil
+  ctx.lineTo(31, -8); // Puente nasal
+  // NARIZ VISIBLE DE PERFIL (sobresale adelante hacia la derecha +X)
+  ctx.lineTo(44, -3); // Punta de la nariz
+  ctx.lineTo(33, 4);  // Base de la nariz
+  ctx.lineTo(31, 10); // Labio superior
+  ctx.lineTo(33, 16); // Labio inferior
+  ctx.lineTo(32, 22); // Barbilla prominente
+  ctx.quadraticCurveTo(16, 32, -4, 28); // Línea de la mandíbula
+  ctx.quadraticCurveTo(-24, 24, -28, 4); // Nuca
+  ctx.quadraticCurveTo(-26, -26, -6, -34);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Sombra suave bajo mandíbula
+  ctx.fillStyle = '#eab308';
+  ctx.beginPath();
+  ctx.arc(8, 22, 16, 0.2, Math.PI - 0.2);
+  ctx.fill();
+
+  // 4. CABELLO SUPERIOR Y FLEQUILLO DE PERFIL
+  ctx.fillStyle = '#5c3317';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(-16, -30);
+  ctx.lineTo(-8, -48);
+  ctx.lineTo(6, -40);
+  ctx.lineTo(20, -45); // Pico delantero
+  ctx.lineTo(28, -26);
+  ctx.lineTo(33, -16); // Flequillo
+  ctx.lineTo(24, -14);
+  ctx.lineTo(18, -4);  // Mechón patilla
+  ctx.lineTo(10, -18);
+  ctx.lineTo(-4, -12);
+  ctx.lineTo(-14, -20);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Brillo café claro (#6B4423)
+  ctx.fillStyle = '#6b4423';
+  ctx.beginPath();
+  ctx.moveTo(-4, -42);
+  ctx.lineTo(4, -34);
+  ctx.lineTo(16, -38);
+  ctx.closePath();
+  ctx.fill();
+
+  // 5. UN SOLO OJO VISIBLE DE PERFIL (El derecho, morado/púrpura)
+  const eyeX = 17;
+  const eyeY = -3;
+  const isJumping = expression === 'jumping';
+  const eyeW = 9;
+  const eyeH = isJumping ? 14 : 11;
+
+  ctx.fillStyle = '#9b59b6';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.ellipse(eyeX, eyeY, eyeW, eyeH, 0.08, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#2e1065';
+  ctx.beginPath();
+  ctx.ellipse(eyeX + 1, eyeY + 1, eyeW * 0.65, eyeH * 0.65, 0.08, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Brillos blancos en el ojo
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(eyeX - 1.5, eyeY - 3.5, 2.5, 0, Math.PI * 2);
+  ctx.arc(eyeX + 3, eyeY + 3.5, 1.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ceja negra expresiva de perfil
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  if (expression === 'jumping' || expression === 'falling') {
+    ctx.moveTo(eyeX - 8, eyeY - eyeH - 6);
+    ctx.quadraticCurveTo(eyeX, eyeY - eyeH - 12, eyeX + 8, eyeY - eyeH - 8);
+  } else if (expression === 'fast_running' || expression === 'sliding') {
+    ctx.moveTo(eyeX - 8, eyeY - eyeH - 10);
+    ctx.lineTo(eyeX + 9, eyeY - eyeH - 4);
+  } else {
+    ctx.moveTo(eyeX - 8, eyeY - eyeH - 7);
+    ctx.lineTo(eyeX + 8, eyeY - eyeH - 5);
+  }
+  ctx.stroke();
+
+  // 6. BOCA VISIBLE DE PERFIL
+  ctx.lineWidth = 3.5;
+  if (expression === 'fast_running' || expression === 'jumping') {
+    ctx.fillStyle = '#7f1d1d';
+    ctx.strokeStyle = '#000000';
+    ctx.beginPath();
+    ctx.moveTo(30, 8);
+    ctx.quadraticCurveTo(36, 14, 28, 20);
+    ctx.quadraticCurveTo(22, 14, 30, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(26, 9, 7, 3.5);
+
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(28, 17, 4, 0, Math.PI);
+    ctx.fill();
+  } else if (expression === 'sliding') {
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#000000';
+    ctx.beginPath();
+    ctx.roundRect(23, 11, 10, 6, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(27, 11);
+    ctx.lineTo(27, 17);
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#000000';
+    ctx.beginPath();
+    ctx.moveTo(24, 12);
+    ctx.quadraticCurveTo(31, 14, 33, 10);
+    ctx.stroke();
+  }
+
+  // Sudor al correr rápido o saltar
+  if (speed > 450 || expression === 'jumping') {
+    const sweatPhase = (t * 6) % 1;
+    ctx.fillStyle = '#38bdf8';
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(-26 - sweatPhase * 30, -10 + sweatPhase * 14, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawChibiGroomPlayer(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  playerState: PlayerPhysicsState,
+  speed: number,
+  animTick: number,
+  options: {
+    invulnerable: boolean;
+    hasShield: boolean;
+    slideDuration: number;
+  }
+) {
+  ctx.save();
+
+  // Si está invulnerable tras recibir daño, parpadea
+  if (options.invulnerable) {
+    ctx.globalAlpha = Math.sin(animTick * 25) > 0 ? 0.35 : 0.95;
+  }
+
+  const isFastFalling = playerState.isFastFalling;
+  const isSliding = playerState.isSliding;
+  const isGrounded = playerState.isGrounded;
+  const vy = playerState.vy;
+  const isInAir = !isGrounded;
+
+  // 1. SOMBRA / BASE EN EL SUELO (proyectada en suelo real y = 400)
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+  ctx.beginPath();
+  if (isSliding) {
+    ctx.ellipse(px + 4, 400, 36, 7, 0, 0, Math.PI * 2);
+  } else if (isInAir) {
+    const heightAboveGround = Math.max(0, 400 - py);
+    const shadowScale = Math.max(0.4, 1 - heightAboveGround / 350);
+    ctx.ellipse(px, 400, 26 * shadowScale, 6 * shadowScale, 0, 0, Math.PI * 2);
+  } else {
+    ctx.ellipse(px, 400, 28, 6.5, 0, 0, Math.PI * 2);
+  }
+  ctx.fill();
+  ctx.restore();
+
+  // Burbuja de escudo protector si está activo
+  if (options.hasShield) {
+    ctx.save();
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3.5;
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.22)';
+    ctx.beginPath();
+    const shieldCenterY = isSliding ? py - 24 : py - 48;
+    ctx.ellipse(px + 2, shieldCenterY, 36, isSliding ? 26 : 52, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Brillo de escudo
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(px - 18, shieldCenterY - 16, 9, -Math.PI * 0.7, -Math.PI * 0.2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Chispas y polvo si está deslizándose
+  if (isSliding) {
+    for (let i = 0; i < 4; i++) {
+      const sparkPhase = (animTick * 25 + i * 0.3) % 1;
+      const sparkX = px - 20 - sparkPhase * 40;
+      const sparkY = py - 2 - Math.random() * 5;
+      ctx.fillStyle = i % 2 === 0 ? '#f59e0b' : '#ef4444';
+      ctx.beginPath();
+      ctx.arc(sparkX, sparkY, 2.5 - sparkPhase * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Determinar expresión facial
+  let expression: 'running' | 'fast_running' | 'jumping' | 'falling' | 'sliding' = 'running';
+  if (isSliding) {
+    expression = 'sliding';
+  } else if (isFastFalling) {
+    expression = 'falling';
+  } else if (isInAir) {
+    expression = vy < 120 ? 'jumping' : 'falling';
+  } else if (speed > 450) {
+    expression = 'fast_running';
+  }
+
+  // =========================================================================
+  // VISTA LATERAL (SIDE VIEW - ESTILO JETPACK JOYRIDE):
+  // Proporciones canónicas Jetpack Joyride:
+  // - Cabeza: 40% del cuerpo (88px de alto, ovalada alargada, perfil con nariz y 1 ojo)
+  // - Torso: 25% del cuerpo (55px de alto, visto de perfil con chaqueta a cuadros)
+  // - Piernas: 35% del cuerpo (77px de alto, piernas alternándose en corrida lateral)
+  // - Brazo visible: SOLO EL DERECHO (el izquierdo está oculto tras el cuerpo)
+  // - Inclinación hacia adelante: 10-15 grados (0.22 rad ≈ 12.6°)
+  // - Altura canónica total: 220px. Con GAME_HEIGHT = 88px, scale = 88 / 220 = 0.4
+  // =========================================================================
+  const CANONICAL_HEIGHT = 220;
+  const GAME_HEIGHT = 88;
+  const scale = GAME_HEIGHT / CANONICAL_HEIGHT; // 0.4
+
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.scale(scale, scale);
+
+  // Todo el renderizado se ejecuta en el espacio canónico de 220px (pivote en pies y = 0)
+
+  // =========================================================================
+  // CASO A: DESLIZAMIENTO LATERAL (SIDE SLIDE ESTILO JETPACK JOYRIDE)
+  // =========================================================================
+  if (isSliding) {
+    const hipX = -15;
+    const hipY = -34;
+
+    // 1. Pierna trasera extendida deslizándose al ras del suelo
+    drawChibiLegSideView(ctx, hipX - 4, hipY, hipX + 30, -16, hipX + 70, -5, true);
+
+    // 2. Torso inclinado hacia atrás en perfil
+    const torsoY = hipY - 24;
+    drawCheckerboardJacketSideView(ctx, hipX - 6, torsoY, 46, 55, -0.42);
+
+    // 3. Pierna delantera extendida al frente
+    drawChibiLegSideView(ctx, hipX + 6, hipY, hipX + 42, -18, hipX + 86, -5, false);
+
+    // 4. Cuello visto de perfil
+    drawChibiNeckSideView(ctx, hipX + 6, torsoY - 28, 24, 14, -0.25);
+
+    // 5. Cabeza baja mirando hacia el frente (+X)
+    drawChibiHeadSideView(ctx, hipX + 22, torsoY - 44, -0.1, animTick, 'sliding', speed);
+
+    // 6. Solo brazo derecho visible: apoyado hacia atrás/suelo
+    drawChibiArmSideView(ctx, hipX - 4, torsoY - 10, -0.85, 52);
+
+    ctx.restore();
+    ctx.restore();
+    return;
+  }
+
+  // =========================================================================
+  // CASO B: EN EL AIRE (SALTO, ÁPICE, CAÍDA O FAST FALL EN VISTA LATERAL)
+  // =========================================================================
+  if (isInAir) {
+    if (isFastFalling) {
+      // Fast fall: postura de buzo picando hacia abajo con estela
+      const hipY = -115;
+      const lean = 0.38;
+
+      // Piernas estiradas atrás en diagonal
+      drawChibiLegSideView(ctx, -10, hipY, -24, hipY - 35, -34, hipY - 75, true);
+      drawChibiLegSideView(ctx, 4, hipY, -10, hipY - 35, -20, hipY - 75, false);
+
+      // Torso inclinado
+      const torsoY = hipY + 28;
+      drawCheckerboardJacketSideView(ctx, 0, torsoY, 46, 55, lean);
+
+      // Cuello
+      drawChibiNeckSideView(ctx, 14, torsoY - 28, 24, 14, lean);
+
+      // Cabeza picando adelante
+      drawChibiHeadSideView(ctx, 30, torsoY - 48, lean - 0.05, animTick, 'falling', speed);
+
+      // Brazo derecho pegado atrás
+      drawChibiArmSideView(ctx, 2, torsoY - 12, -2.2, 52);
+
+      ctx.restore();
+      ctx.restore();
+      return;
+    }
+
+    if (vy < -220) {
+      // Salto ascendente: postura de despegue Jetpack Joyride (puño arriba, piernas en tuck)
+      const hipY = -94;
+      const lean = 0.16;
+
+      // Pierna trasera doblada estilo tuck
+      drawChibiLegSideView(ctx, -8, hipY, -26, hipY + 26, -8, hipY + 52, true);
+
+      // Torso inclinado hacia adelante (10-15°)
+      const torsoY = hipY - 34;
+      drawCheckerboardJacketSideView(ctx, 0, torsoY, 46, 55, lean);
+
+      // Pierna delantera recogida con rodilla al frente
+      drawChibiLegSideView(ctx, 4, hipY, 24, hipY + 24, 8, hipY + 52, false);
+
+      // Cuello
+      drawChibiNeckSideView(ctx, 4, torsoY - 30, 24, 14, lean);
+
+      // Cabeza con un solo ojo mirando al frente
+      drawChibiHeadSideView(ctx, 8, torsoY - 50, lean - 0.05, animTick, 'jumping', speed);
+
+      // Brazo derecho levantado heroico hacia arriba (+X, -Y)
+      drawChibiArmSideView(ctx, 6, torsoY - 14, -2.1, 52);
+
+      ctx.restore();
+      ctx.restore();
+      return;
+    }
+
+    if (vy < 180) {
+      // Ápice del salto: flotando en el aire
+      const hipY = -90;
+      const lean = 0.08;
+
+      // Piernas en pose flotante
+      drawChibiLegSideView(ctx, -8, hipY, -28, hipY + 22, -12, hipY + 52, true);
+      drawChibiLegSideView(ctx, 4, hipY, 28, hipY + 24, 26, hipY + 56, false);
+
+      // Torso
+      const torsoY = hipY - 34;
+      drawCheckerboardJacketSideView(ctx, 0, torsoY, 46, 55, lean);
+
+      // Cuello
+      drawChibiNeckSideView(ctx, 3, torsoY - 30, 24, 14, lean);
+
+      // Cabeza
+      drawChibiHeadSideView(ctx, 6, torsoY - 50, lean, animTick, 'jumping', speed);
+
+      // Brazo derecho equilibrado al frente
+      drawChibiArmSideView(ctx, 4, torsoY - 14, 1.1, 52);
+
+      ctx.restore();
+      ctx.restore();
+      return;
+    }
+
+    // Caída regular: piernas extendiéndose hacia adelante/abajo para amortiguar
+    const hipY = -92;
+    const lean = 0.12;
+
+    // Piernas amortiguadoras
+    drawChibiLegSideView(ctx, -8, hipY, -14, hipY + 36, -6, hipY + 74, true);
+    drawChibiLegSideView(ctx, 4, hipY, 18, hipY + 36, 26, hipY + 74, false);
+
+    // Torso
+    const torsoY = hipY - 34;
+    drawCheckerboardJacketSideView(ctx, 0, torsoY, 46, 55, lean);
+
+    // Cuello
+    drawChibiNeckSideView(ctx, 3, torsoY - 30, 24, 14, lean);
+
+    // Cabeza
+    drawChibiHeadSideView(ctx, 6, torsoY - 50, lean * 0.7, animTick, 'falling', speed);
+
+    // Brazo derecho preparado hacia adelante
+    drawChibiArmSideView(ctx, 4, torsoY - 14, 0.55, 52);
+
+    ctx.restore();
+    ctx.restore();
+    return;
+  }
+
+  // =========================================================================
+  // CASO C: CORRIENDO EN TIERRA (RUNNING - VISTA LATERAL JETPACK JOYRIDE)
+  // =========================================================================
+  const runRate = 12 + speed / 110;
+  const cycle = (animTick * runRate) % (Math.PI * 2);
+  const runBounce = Math.sin(cycle * 2) * 4.5;
+
+  // Inclinación característica del cuerpo hacia adelante (10 a 15 grados: 0.22 rad ≈ 12.6°)
+  const torsoLean = 0.22;
+
+  // Altura de cadera: -77px (piernas de 77px representan el 35% del cuerpo de 220px)
+  const hipY = -77 + runBounce;
+  const hipX = 0;
+
+  // 1. Pierna trasera (vista detrás del torso, zancada lateral)
+  drawNaturalChibiLegSideView(ctx, hipX - 4, hipY, cycle, true);
+
+  // 2. Torso con chaqueta a cuadros visto de perfil (25% del cuerpo: 55px de alto)
+  const torsoY = hipY - 34;
+  drawCheckerboardJacketSideView(ctx, hipX + 2, torsoY, 46, 55, torsoLean);
+
+  // 3. Pierna delantera (al frente, zancada opuesta)
+  drawNaturalChibiLegSideView(ctx, hipX + 4, hipY, cycle + Math.PI, false);
+
+  // 4. Cuello visto de perfil
+  const neckY = torsoY - 30;
+  drawChibiNeckSideView(ctx, hipX + 6, neckY, 24, 14, torsoLean);
+
+  // 5. Cabeza lateral grande (40% del cuerpo: 88px, perfil con nariz, oreja y un solo ojo)
+  const headY = torsoY - 52;
+  drawChibiHeadSideView(ctx, hipX + 12, headY, torsoLean * 0.7, animTick, expression, speed);
+
+  // 6. SOLO UN BRAZO VISIBLE (El derecho): se balancea hacia adelante y atrás al compás
+  // El brazo izquierdo NO se dibuja (oclusión de vista lateral)
+  const armAngle = -Math.sin(cycle) * 0.75 + 0.15;
+  drawChibiArmSideView(ctx, hipX + 8, torsoY - 14, armAngle, 52);
+
+  ctx.restore();
+  ctx.restore();
+}
+
 interface RunnerCanvasProps {
   onStatsUpdate?: (stats: GameStats) => void;
   onGameOver?: (finalStats: GameStats) => void;
@@ -894,43 +1781,18 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({
           { animTick: s.animTick }
         );
 
-        // Dibujar Jugador (Novio) con animación enriquecida de salto y agachado
-        let playerSpriteId: SpriteId = 'groom_run_0';
-        if (s.playerState.isSliding) {
-          const totalSlideTime = debugRef.current.slideDuration || 0.4;
-          const slideProgress = 1 - Math.max(0, s.playerState.slideTimer / totalSlideTime);
-          if (slideProgress < 0.22) {
-            playerSpriteId = 'groom_slide_0'; // Inicio de agachado
-          } else if (slideProgress < 0.78) {
-            playerSpriteId = 'groom_slide_1'; // Derrape pleno a ras de suelo con chispas
-          } else {
-            playerSpriteId = 'groom_slide_2'; // Recuperación de pie
-          }
-        } else if (!s.playerState.isGrounded) {
-          if (s.playerState.isFastFalling) {
-            playerSpriteId = 'groom_fast_fall'; // Caída rápida en picada
-          } else if (s.playerState.vy < -220) {
-            playerSpriteId = 'groom_jump_up'; // Impulso ascendente
-          } else if (s.playerState.vy < 180) {
-            playerSpriteId = 'groom_jump_apex'; // Pose ninja / tuck jump en el ápice
-          } else {
-            playerSpriteId = 'groom_fall'; // Descenso amortiguando
-          }
-        } else {
-          const runIndex = Math.floor((s.animTick * 12) % 4);
-          playerSpriteId = `groom_run_${runIndex}` as SpriteId;
-        }
-
-        drawSpriteBottomCenter(
+        // Dibujar Jugador (Novio Chibi Cartoon de Alta Fidelidad)
+        drawChibiGroomPlayer(
           ctx,
-          playerSpriteId,
           PLAYER_X,
           s.playerState.y,
-          1,
+          s.playerState,
+          s.speed,
+          s.animTick,
           {
-            flash: s.invulnerableTimer > 0,
+            invulnerable: s.invulnerableTimer > 0,
             hasShield: s.activePowerups.shield,
-            animTick: s.animTick,
+            slideDuration: debugRef.current.slideDuration || 0.4,
           }
         );
 
