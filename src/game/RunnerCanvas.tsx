@@ -39,6 +39,8 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({ isPaused, best, onGa
     const game = new Game({ best });
     let keyHeld = false;
     let pointerHeld = false;
+    // Un toque más corto que un fotograma igual cuenta (vehículos que reaccionan al toque)
+    let tapLatch = false;
     let last = performance.now();
     let raf = 0;
     let finished = false;
@@ -46,7 +48,10 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({ isPaused, best, onGa
     const onKeyDown = (e: KeyboardEvent) => {
       if (THRUST_KEYS.has(e.code)) {
         e.preventDefault();
-        if (!e.repeat) keyHeld = true;
+        if (!e.repeat) {
+          keyHeld = true;
+          tapLatch = true;
+        }
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -59,6 +64,7 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({ isPaused, best, onGa
     const onPointerDown = (e: PointerEvent) => {
       e.preventDefault();
       pointerHeld = true;
+      tapLatch = true;
       try {
         canvas.setPointerCapture(e.pointerId);
       } catch {
@@ -84,7 +90,8 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({ isPaused, best, onGa
       const dt = (now - last) / 1000;
       last = now;
       if (!pausedRef.current && !finished) {
-        game.update(dt, keyHeld || pointerHeld);
+        game.update(dt, keyHeld || pointerHeld || tapLatch);
+        tapLatch = false;
       } else {
         game.silence();
       }
@@ -107,7 +114,7 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({ isPaused, best, onGa
       window.removeEventListener('pointercancel', onPointerUp);
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('contextmenu', onContextMenu);
-      game.silence();
+      game.dispose(); // guarda lo recorrido si sales a mitad de partida
       sound.stopMusic();
     };
     // El juego se crea una sola vez por montaje (App cambia la `key` para reiniciar)

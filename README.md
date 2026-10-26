@@ -9,6 +9,15 @@ Runner de scroll lateral estilo *Jetpack Joyride*. Es el día de tu boda, te arr
 - Recoge anillos (10 pts c/u). Power-ups: **Velo** (aguanta 1 golpe), **Imán**, **Luna de miel** (turbo invencible).
 - Pausa: `P` o `Esc`.
 
+## Regalos, vehículos y logros
+
+- **Regalos de boda 🎁**: aparecen cada cierto tiempo (el primero cerca de los 90 m). Al cruzarlos te subes a un vehículo al azar que aguanta **un golpe** (si te dan, se destruye y sigues con el jetpack, sin castigo de la novia).
+  - **Cisne Inflable**: cada toque da un aletazo; mantén para seguir aleteando.
+  - **Limusina Recién Casados**: rueda por el piso; mantén para saltar más alto. Aplasta las torres de copas.
+  - **Carroza de Cupido**: cada toque invierte la gravedad (piso ⇄ techo).
+- **Logros** (menú → Logros): 29 retos en 6 grupos, con barra de progreso, y un **Garaje** con los vehículos descubiertos.
+- El progreso se guarda en `localStorage` (clave `novio_en_fuga_save_v1`) y se puede borrar desde el modal de Logros.
+
 ## Desarrollo
 ```bash
 npm install
