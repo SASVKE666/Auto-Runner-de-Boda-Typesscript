@@ -6,7 +6,6 @@
  * Cada golpe acerca a la novia; si te alcanza, se acabó.
  */
 import {
-  BRIDE_LINES,
   CEIL_Y,
   COLORS,
   FIRST_GIFT_M,
@@ -18,7 +17,6 @@ import {
   H,
   HIT_PENALTY,
   MAX_GAP,
-  MILESTONE_LINES,
   PickupType,
   POWERUP,
   PX_PER_M,
@@ -170,12 +168,18 @@ const GRAVITY = 1500;
 const VY_UP = -480;
 const VY_DOWN = 640;
 const BASE_SPEED = 330;
+/** Cada cuántos metros el marcador de distancia salta y cambia de color */
+const MILESTONE_EVERY = 250;
+/** Segundos que se muestra cada aviso de logro */
+const TOAST_T = 3.2;
+/** Colores del marcador de distancia: uno nuevo en cada meta (el primero es el normal) */
+const METER_COLORS = ['#fff4e0', '#ffd34d', '#ff8fc0', '#7fe0a0', '#8fdcff', '#c9a3ff'];
 /**
  * Velocidad de scroll según los metros recorridos: sube de forma continua y suave,
- * rápido al principio y más despacio después (330 → ~630 a 2500 m → ~790 a 6000 m).
+ * rápido al principio y más despacio después (330 → ~705 a 2500 m → ~900 a 6000 m).
  */
 export function speedAt(m: number) {
-  return BASE_SPEED + Math.min(m, 2500) * 0.12 + Math.max(0, Math.min(m, 6000) - 2500) * 0.045;
+  return BASE_SPEED + Math.min(m, 2500) * 0.15 + Math.max(0, Math.min(m, 6000) - 2500) * 0.055;
 }
 /** Segundos de invulnerabilidad tras un golpe (antes 1.6) */
 const INVULN_HIT = 0.8;
@@ -229,7 +233,6 @@ export class Game {
   // novia / ambiente
   brideY = GROOM_MAX_Y - 10;
   caughtT = 0;
-  bubble: { text: string; t: number } | null = null;
   banner: { title: string; sub: string; t: number; dur?: number } | null = null;
 
   // vehículo y logros
@@ -244,8 +247,9 @@ export class Game {
   shake = 0;
   flash = 0;
   private lastHitAt = -99;
-  private nextBubbleAt = 7;
-  private nextMilestone = 250;
+  private nextMilestone = MILESTONE_EVERY;
+  private milestones = 0;
+  private milestoneFx = 0;
   private ringsBonus = 0;
   private foamAcc = 0;
   private dustAcc = 0;
@@ -351,7 +355,7 @@ export class Game {
     });
     for (const a of earned) {
       this.unlockedNow.push(a.id);
-      this.toasts.push({ id: a.id, t: 3.8 });
+      this.toasts.push({ id: a.id, t: TOAST_T });
     }
     sound.playAchievement();
   }
@@ -831,8 +835,11 @@ export class Game {
   update(dtRaw: number, thrust: boolean) {
     const dt = Math.min(dtRaw, 1 / 30);
     this.t += dt;
-    for (const tst of this.toasts) tst.t -= dt;
-    this.toasts = this.toasts.filter((tst) => tst.t > 0);
+    if (this.toasts.length) {
+      // se muestran de uno en uno, en cola
+      this.toasts[0].t -= dt;
+      if (this.toasts[0].t <= 0) this.toasts.shift();
+    }
 
     if (this.state === 'ready') {
       this.thrusting = false;
@@ -1006,17 +1013,9 @@ export class Game {
     }
     this.shake = Math.max(0, this.shake - dt);
     this.flash = Math.max(0, this.flash - dt * 1.8);
-    if (this.bubble) {
-      this.bubble.t -= dt;
-      if (this.bubble.t <= 0) this.bubble = null;
-    }
     if (this.banner) {
       this.banner.t -= dt;
       if (this.banner.t <= 0) this.banner = null;
-    }
-    if (this.t >= this.nextBubbleAt) {
-      this.nextBubbleAt = this.t + this.r(8, 14);
-      if (!this.bubble) this.bubble = { text: this.pick(BRIDE_LINES), t: 2.4 };
     }
 
     // zonas e hitos
@@ -1030,12 +1029,11 @@ export class Game {
     }
     if (this.zoneT < 1) this.zoneT = Math.min(1, this.zoneT + dt / 2.2);
     if (this.distM >= this.nextMilestone) {
-      const idx = this.nextMilestone / 250 - 1;
-      if (!this.banner) {
-        this.banner = { title: `${this.nextMilestone} m`, sub: MILESTONE_LINES[idx % MILESTONE_LINES.length], t: 2.6 };
-      }
-      this.nextMilestone += 250;
+      this.nextMilestone += MILESTONE_EVERY;
+      this.milestones++;
+      this.milestoneFx = 1; // el marcador de metros salta y cambia de color
     }
+    this.milestoneFx = Math.max(0, this.milestoneFx - dt / 0.7);
 
     this.updateParticles(dt);
     for (const p of this.popups) {
@@ -1349,7 +1347,6 @@ export class Game {
     this.burst('petal', ex, ey, 14, [COLORS.rose, COLORS.blush, '#ffffff'], 300, 0.9, 400);
     this.burst('spark', ex, ey, 10, ['#fff3b8', '#ff8fc0'], 260, 0.5, 0);
     this.vy = Math.min(this.vy, -120);
-    this.bubble = { text: this.pick(['¡TE TENGO!', '¡YA CASI!', '¡VEN AQUÍ!']), t: 1.4 };
     if (this.gap <= 0) {
       this.catchGroom();
     }
@@ -1363,7 +1360,6 @@ export class Game {
     this.thrusting = false;
     this.silence();
     sound.playGameOver();
-    this.bubble = { text: '¡TE ATRAPÉ!', t: 2 };
     this.burst('heart', GROOM_X, this.cy - 20, 18, [COLORS.rose, COLORS.blush, '#ff6b9a'], 220, 1.4, -40);
     this.finishRun();
   }
@@ -1437,7 +1433,6 @@ export class Game {
       ctx.fillRect(0, 0, W, H);
     }
 
-    this.drawBubble(ctx);
     this.drawPopups(ctx);
     this.drawHud(ctx);
     this.drawBanner(ctx);
@@ -1475,35 +1470,41 @@ export class Game {
     ctx.restore();
   }
 
+  /** Aviso de logro: cabe en la franja del marcador, entre la barra de los novios y los anillos */
   private drawToasts(ctx: CanvasRenderingContext2D) {
-    this.toasts.slice(0, 3).forEach((tst, i) => {
-      const a = ACHIEVEMENT_BY_ID[tst.id];
-      if (!a) return;
-      const inK = clamp((3.8 - tst.t) * 5, 0, 1);
-      const outK = clamp(tst.t * 3, 0, 1);
-      const k = Math.min(inK, outK);
-      const e = 1 - Math.pow(1 - inK, 3);
-      const w = 340;
-      const h = 56;
-      const x = W / 2 - w / 2;
-      const y = 58 + i * 64 - (1 - e) * 40;
-      ctx.save();
-      ctx.globalAlpha = k;
-      rrect(ctx, x, y, w, h, 16, 'rgba(42,11,29,.94)', 3.4);
-      ctx.beginPath();
-      ctx.roundRect(x + 4, y + 4, w - 8, h - 8, 12);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = COLORS.gold;
-      ctx.stroke();
-      ctx.font = '30px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#fff';
-      ctx.fillText(a.icon, x + 34, y + h / 2 + 2);
-      drawText(ctx, '¡LOGRO DESBLOQUEADO!', x + 64, y + 22, 12, COLORS.gold, { strokeW: 3 });
-      drawText(ctx, a.name, x + 64, y + 44, 19, COLORS.cream, { strokeW: 4 });
-      ctx.restore();
-    });
+    const tst = this.toasts[0];
+    const a = tst && ACHIEVEMENT_BY_ID[tst.id];
+    if (!a) return;
+    const inK = clamp((TOAST_T - tst.t) * 5, 0, 1);
+    const outK = clamp(tst.t * 3, 0, 1);
+    const k = Math.min(inK, outK);
+    const e = 1 - Math.pow(1 - inK, 3);
+    const w = 176;
+    const h = 42;
+    const x = 648 + (1 - e) * 14;
+    const y = 10;
+    ctx.save();
+    ctx.globalAlpha = k;
+    rrect(ctx, x, y, w, h, 13, 'rgba(42,11,29,.94)', 3);
+    ctx.beginPath();
+    ctx.roundRect(x + 3.5, y + 3.5, w - 7, h - 7, 10);
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = COLORS.gold;
+    ctx.stroke();
+    ctx.font = '24px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(a.icon, x + 23, y + h / 2 + 1);
+    drawText(ctx, '¡LOGRO!', x + 42, y + 17, 10, COLORS.gold, { strokeW: 2.5 });
+    // el nombre se encoge si no cabe
+    let fs = 15;
+    ctx.font = `${fs}px "Titan One", "Arial Black", system-ui, sans-serif`;
+    const maxW = w - 50;
+    const tw = ctx.measureText(a.name).width;
+    if (tw > maxW) fs = Math.max(9, Math.floor((fs * maxW) / tw));
+    drawText(ctx, a.name, x + 42, y + 35, fs, COLORS.cream, { strokeW: 3 });
+    ctx.restore();
   }
 
   private drawParticles(ctx: CanvasRenderingContext2D) {
@@ -1568,35 +1569,6 @@ export class Game {
     ctx.restore();
   }
 
-  private drawBubble(ctx: CanvasRenderingContext2D) {
-    if (!this.bubble) return;
-    const text = this.bubble.text;
-    ctx.save();
-    ctx.font = '19px "Titan One", "Arial Black", system-ui, sans-serif';
-    const tw = ctx.measureText(text).width;
-    const bw = tw + 28;
-    const bh = 38;
-    const bx = clamp(this.brideX + 6, 14, W - bw - 14);
-    const by = clamp(this.brideY - 118, CEIL_Y + 8, H - 140);
-    const a = Math.min(1, this.bubble.t * 3);
-    ctx.globalAlpha = a;
-    rrect(ctx, bx, by, bw, bh, 14, '#ffffff', 3.2);
-    poly(ctx, [bx + 16, by + bh - 1, bx + 34, by + bh - 1, bx + 14, by + bh + 16], '#ffffff', 0);
-    ctx.strokeStyle = COLORS.ink;
-    ctx.lineWidth = 3.2;
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(bx + 16, by + bh);
-    ctx.lineTo(bx + 14, by + bh + 16);
-    ctx.lineTo(bx + 34, by + bh);
-    ctx.stroke();
-    ctx.fillStyle = COLORS.ink;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, bx + bw / 2, by + bh / 2 + 1);
-    ctx.restore();
-  }
-
   private drawPopups(ctx: CanvasRenderingContext2D) {
     for (const p of this.popups) {
       drawText(ctx, p.text, p.x, p.y, 22, p.color, { align: 'center', alpha: clamp(p.life * 2, 0, 1) });
@@ -1631,8 +1603,14 @@ export class Game {
 
   private drawHud(ctx: CanvasRenderingContext2D) {
     const m = Math.floor(this.distM);
-    // distancia
-    drawText(ctx, `${m} m`, 22, 44, 34, COLORS.cream);
+    // distancia: salta unos pixeles y cambia de color al llegar a cada meta
+    const fx = this.milestoneFx;
+    const hop = fx > 0 ? Math.abs(Math.sin((1 - fx) * Math.PI * 2.5)) * 9 * fx : 0;
+    const tier = this.milestones === 0 ? 0 : 1 + ((this.milestones - 1) % (METER_COLORS.length - 1));
+    ctx.save();
+    ctx.translate(0, -hop);
+    drawText(ctx, `${m} m`, 22, 44, 34, fx > 0.55 ? '#ffffff' : METER_COLORS[tier]);
+    ctx.restore();
     if (this.best > 0) {
       drawText(ctx, `MEJOR ${this.best} m`, 24, 61, 13, '#ffd9e4', { strokeW: 3.5 });
     }
