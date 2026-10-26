@@ -3,7 +3,7 @@
  * copas, araña de cristal, ramo-misil) y señal de advertencia.
  */
 import { COLORS, FLOOR_Y, PickupType } from '../constants';
-import { circle, drawHeart, drawText, ellipse, getSprite, ink, poly, rand01, rrect } from './core';
+import { circle, drawHeart, drawText, ellipse, getHaloSprite, getSprite, ink, poly, rand01, rrect } from './core';
 
 /* ------------------------------------------------------------------ */
 /* Anillos                                                             */
@@ -175,6 +175,10 @@ export function drawZapper(
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   path();
+  ctx.lineWidth = 19;
+  ctx.strokeStyle = 'rgba(42,20,32,.5)'; // base oscura para despegarlo del fondo
+  ctx.stroke();
+  path();
   ctx.lineWidth = 14;
   ctx.strokeStyle = 'rgba(255,90,160,.28)';
   ctx.stroke();
@@ -240,7 +244,7 @@ function glass(ctx: CanvasRenderingContext2D, x: number, y: number) {
 export function drawTower(ctx: CanvasRenderingContext2D, cx: number, rows: number) {
   const w = towerWidth(rows);
   const h = towerHeight(rows);
-  const sprite = getSprite(`tower${rows}`, w, h, (c) => {
+  const { sprite, pad } = getHaloSprite(`tower${rows}`, w, h, (c) => {
     const mid = w / 2;
     // mesa
     poly(c, [4, h - TOWER_BASE_H, w - 4, h - TOWER_BASE_H, w - 1, h - 1, 1, h - 1], COLORS.cream, 3);
@@ -254,7 +258,7 @@ export function drawTower(ctx: CanvasRenderingContext2D, cx: number, rows: numbe
       for (let i = 0; i < count; i++) glass(c, x0 + i * GLASS_W, y);
     }
   });
-  ctx.drawImage(sprite, cx - w / 2, FLOOR_Y - h, w, h);
+  ctx.drawImage(sprite, cx - w / 2 - pad, FLOOR_Y - h - pad, w + pad * 2, h + pad * 2);
 }
 
 export function towerRects(cx: number, rows: number) {
@@ -279,25 +283,30 @@ export const CHANDELIER_H = 112;
 
 export function drawChandelier(ctx: CanvasRenderingContext2D, cx: number, ceilY: number, len: number, t: number) {
   const top = ceilY + len;
-  // cadena
-  ctx.strokeStyle = COLORS.ink;
-  ctx.lineWidth = 7;
+  // cadena (plateada, con brillo claro y resplandor de peligro: no se confunde con los dorados del fondo)
   ctx.lineCap = 'butt';
-  ctx.beginPath();
-  ctx.moveTo(cx, ceilY - 4);
-  ctx.lineTo(cx, top + 2);
-  ctx.stroke();
-  ctx.strokeStyle = COLORS.gold;
-  ctx.lineWidth = 3.4;
-  ctx.setLineDash([6, 4]);
-  ctx.stroke();
+  const chain = (lw: number, color: string, dash?: number[]) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.setLineDash(dash ?? []);
+    ctx.beginPath();
+    ctx.moveTo(cx, ceilY - 4);
+    ctx.lineTo(cx, top + 2);
+    ctx.stroke();
+  };
+  chain(17, 'rgba(255,47,109,.3)');
+  chain(12, 'rgba(255,92,141,.4)');
+  chain(10, '#fff6e8');
+  chain(7, COLORS.ink);
+  chain(3.4, '#dfeaf5', [6, 4]);
   ctx.setLineDash([]);
 
-  const sprite = getSprite('chandelier', CHANDELIER_W, CHANDELIER_H, (c) => {
+  const { sprite, pad } = getHaloSprite('chandelier', CHANDELIER_W, CHANDELIER_H, (c) => {
     const m = CHANDELIER_W / 2;
-    poly(c, [m - 9, 0, m + 9, 0, m + 6, 13, m - 6, 13], COLORS.gold, 2.6);
-    rrect(c, m - 3.5, 12, 7, 24, 2, COLORS.gold, 2.4);
-    ellipse(c, m, 36, 18, 9, COLORS.gold, 2.6);
+    const SILVER = '#cfdcea';
+    poly(c, [m - 9, 0, m + 9, 0, m + 6, 13, m - 6, 13], SILVER, 2.6);
+    rrect(c, m - 3.5, 12, 7, 24, 2, SILVER, 2.4);
+    ellipse(c, m, 36, 18, 9, SILVER, 2.6);
     // brazos
     c.beginPath();
     c.moveTo(m - 6, 40);
@@ -305,11 +314,12 @@ export function drawChandelier(ctx: CanvasRenderingContext2D, cx: number, ceilY:
     c.moveTo(m + 6, 40);
     c.quadraticCurveTo(m + 30, 40, m + 38, 56);
     ink(c, null, 4.6);
-    c.strokeStyle = COLORS.gold;
+    c.strokeStyle = SILVER;
     c.lineWidth = 2.2;
     c.stroke();
     // plato inferior
-    ellipse(c, m, 62, 40, 11, COLORS.gold, 2.8);
+    ellipse(c, m, 62, 40, 11, SILVER, 2.8);
+    ellipse(c, m, 60, 33, 5.5, '#f2f8ff', 0); // brillo del plato
     // velas
     for (let i = -2; i <= 2; i++) {
       const bx = m + i * 15;
@@ -325,10 +335,14 @@ export function drawChandelier(ctx: CanvasRenderingContext2D, cx: number, ceilY:
       c.moveTo(bx, 70);
       c.lineTo(bx, yy);
       ink(c, null, 1.6);
-      poly(c, [bx, yy - 1, bx + 4.2, yy + 5.5, bx, yy + 13, bx - 4.2, yy + 5.5], '#d8f1ff', 1.8);
+      poly(c, [bx, yy - 1, bx + 4.2, yy + 5.5, bx, yy + 13, bx - 4.2, yy + 5.5], '#8fdcff', 1.8);
+      c.beginPath();
+      c.moveTo(bx - 0.5, yy + 1);
+      c.lineTo(bx - 2, yy + 5);
+      ink(c, null, 1.2, '#ffffff');
     }
   });
-  ctx.drawImage(sprite, cx - CHANDELIER_W / 2, top, CHANDELIER_W, CHANDELIER_H);
+  ctx.drawImage(sprite, cx - CHANDELIER_W / 2 - pad, top - pad, CHANDELIER_W + pad * 2, CHANDELIER_H + pad * 2);
   // llamas animadas
   for (let i = -2; i <= 2; i++) {
     const bx = cx + i * 15;
@@ -359,7 +373,7 @@ export const MISSILE_W = 92;
 export const MISSILE_H = 46;
 
 export function drawMissile(ctx: CanvasRenderingContext2D, x: number, y: number, t: number) {
-  const sprite = getSprite('bouquet', MISSILE_W, MISSILE_H, (c) => {
+  const { sprite, pad } = getHaloSprite('bouquet', MISSILE_W, MISSILE_H, (c) => {
     // papel de envolver
     poly(c, [34, 8, 80, 23, 34, 38], COLORS.cream, 2.8);
     c.beginPath();
@@ -408,7 +422,7 @@ export function drawMissile(ctx: CanvasRenderingContext2D, x: number, y: number,
     ctx.quadraticCurveTo(MISSILE_W / 2 + 6, s * (6 + Math.sin(t * 20) * 3), MISSILE_W / 2 + 22, s * 12);
     ctx.stroke();
   }
-  ctx.drawImage(sprite, -MISSILE_W / 2, -MISSILE_H / 2, MISSILE_W, MISSILE_H);
+  ctx.drawImage(sprite, -MISSILE_W / 2 - pad, -MISSILE_H / 2 - pad, MISSILE_W + pad * 2, MISSILE_H + pad * 2);
   ctx.restore();
 }
 
