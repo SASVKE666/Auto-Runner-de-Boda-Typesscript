@@ -61,25 +61,6 @@ export const POWERUP = {
   turboSpeedBonus: 260,
 } as const;
 
-export const BRIDE_LINES = [
-  '¡VEN AQUÍ, MI AMOR!',
-  '¡YA PAGUÉ EL BANQUETE!',
-  '¡NO TE ESCAPAS DE MÍ!',
-  '¡300 INVITADOS TE ESPERAN!',
-  '¡EL PASTEL NO TIENE REEMBOLSO!',
-  '¡YA ESTÁN LAS FLORES!',
-  '¡MI MAMÁ YA LLEGÓ!',
-  '¡TE DIJE QUE SÍ... Y TÚ TAMBIÉN!',
-];
-
-export const MILESTONE_LINES = [
-  '¡La novia ya se quitó los tacones!',
-  '¡Corre, que el cura ya está listo!',
-  '¡El DJ ya puso la marcha nupcial!',
-  '¡Tu suegra tomó el micrófono!',
-  '¡Ni el pastel te va a salvar!',
-];
-
 /* ------------------------------------------------------------------ */
 /* Vehículos (se consiguen con los regalos de boda)                    */
 /* ------------------------------------------------------------------ */
