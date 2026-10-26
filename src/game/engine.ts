@@ -30,7 +30,7 @@ import {
   type VehicleKind,
 } from './constants';
 import { sound } from './sound';
-import { drawFloorShadow, drawVignette, drawZone } from './art/backgrounds';
+import { drawBackdropVeil, drawFloorShadow, drawVignette, drawZone } from './art/backgrounds';
 import { drawBride, drawGroom, GROOM_SKIN, NOZZLES, type GroomPose } from './art/characters';
 import { circle, clamp, drawHeart, drawText, lerp, poly, rrect } from './art/core';
 import * as P from './art/props';
@@ -170,6 +170,15 @@ const GRAVITY = 1500;
 const VY_UP = -480;
 const VY_DOWN = 640;
 const BASE_SPEED = 330;
+/**
+ * Velocidad de scroll según los metros recorridos: sube de forma continua y suave,
+ * rápido al principio y más despacio después (330 → ~630 a 2500 m → ~790 a 6000 m).
+ */
+export function speedAt(m: number) {
+  return BASE_SPEED + Math.min(m, 2500) * 0.12 + Math.max(0, Math.min(m, 6000) - 2500) * 0.045;
+}
+/** Segundos de invulnerabilidad tras un golpe (antes 1.6) */
+const INVULN_HIT = 0.8;
 const WARN_LOCK = 0.95;
 const WARN_LAUNCH = 1.5;
 const MISSILE_EXTRA = 420;
@@ -858,7 +867,7 @@ export class Game {
     }
 
     // velocidad
-    const base = BASE_SPEED + Math.min(this.distM, 2400) * 0.11;
+    const base = speedAt(this.distM);
     const target = base + (this.turbo > 0 ? POWERUP.turboSpeedBonus : 0);
     this.speed += (target - this.speed) * Math.min(1, dt * 2.2);
 
@@ -1294,7 +1303,7 @@ export class Game {
     if (v.hp > 0) return;
     const d = VEHICLES[v.kind];
     this.vehicle = null;
-    this.invuln = 1.6;
+    this.invuln = INVULN_HIT;
     this.shake = 0.4;
     this.flash = 0.35;
     sound.playHit();
@@ -1324,7 +1333,7 @@ export class Game {
     if (this.shield) {
       this.run.shieldsUsed++;
       this.shield = false;
-      this.invuln = 1;
+      this.invuln = 0.5;
       sound.playShieldBreak();
       this.burst('spark', GROOM_X, this.cy, 22, ['#ffffff', COLORS.blush, '#bfe3ff'], 320, 0.7, 200);
       this.shake = 0.2;
@@ -1332,7 +1341,7 @@ export class Game {
       return;
     }
     this.gap -= HIT_PENALTY;
-    this.invuln = 1.6;
+    this.invuln = INVULN_HIT;
     this.shake = 0.45;
     this.flash = 0.45;
     this.lastHitAt = this.t;
@@ -1379,6 +1388,7 @@ export class Game {
     } else {
       drawZone(ctx, this.zoneTo, sc, 1);
     }
+    drawBackdropVeil(ctx);
 
     // sombra del novio
     drawFloorShadow(ctx, GROOM_X, FLOOR_Y - 36 - this.cy + 36, 22);

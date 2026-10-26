@@ -57,6 +57,51 @@ export function getSprite(
   return c;
 }
 
+/**
+ * Sprite con contorno de "peligro": un brillo rosado suave + un borde claro y fino alrededor de la silueta.
+ * Hace que los obstáculos se separen del fondo sin importar los colores de este.
+ * Devuelve el canvas (más grande que `w`x`h` por `pad` en cada lado): dibújalo en (x - pad, y - pad).
+ */
+export function getHaloSprite(
+  key: string,
+  w: number,
+  h: number,
+  draw: (ctx: CanvasRenderingContext2D) => void,
+  pad = 7
+): { sprite: HTMLCanvasElement; pad: number } {
+  const sprite = getSprite(key + '#halo', w + pad * 2, h + pad * 2, (c) => {
+    const s = renderScale;
+    const iw = Math.ceil(w * s);
+    const ih = Math.ceil(h * s);
+    const inner = makeCanvas(iw, ih);
+    const ictx = inner.getContext('2d')!;
+    ictx.scale(s, s);
+    draw(ictx);
+    const fw = Math.ceil((w + pad * 2) * s);
+    const fh = Math.ceil((h + pad * 2) * s);
+    const layer = (r: number, color: string, alpha: number) => {
+      const t = makeCanvas(fw, fh);
+      const tctx = t.getContext('2d')!;
+      const n = 20;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        tctx.drawImage(inner, pad * s + Math.cos(a) * r * s, pad * s + Math.sin(a) * r * s);
+      }
+      tctx.globalCompositeOperation = 'source-in';
+      tctx.fillStyle = color;
+      tctx.fillRect(0, 0, fw, fh);
+      c.globalAlpha = alpha;
+      c.drawImage(t, 0, 0, w + pad * 2, h + pad * 2);
+      c.globalAlpha = 1;
+    };
+    layer(pad - 0.5, '#ff2f6d', 0.32); // resplandor de peligro
+    layer(pad * 0.62, '#ff5c8d', 0.38);
+    layer(3.2, '#fff6e8', 1); // borde claro
+    c.drawImage(inner, pad, pad, w, h);
+  });
+  return { sprite, pad };
+}
+
 export const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 

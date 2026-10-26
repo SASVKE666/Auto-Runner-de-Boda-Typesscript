@@ -696,6 +696,18 @@ export function drawZone(ctx: CanvasRenderingContext2D, zone: number, scroll: nu
   ctx.restore();
 }
 
+/** Velo oscuro sobre el decorado: lo baja de contraste para que los obstáculos y anillos destaquen */
+export function drawBackdropVeil(ctx: CanvasRenderingContext2D) {
+  const s = getSprite('backdrop_veil', W, H, (c) => {
+    const g = c.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(26,6,20,.40)');
+    g.addColorStop(1, 'rgba(26,6,20,.30)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, W, H);
+  });
+  ctx.drawImage(s, 0, 0, W, H);
+}
+
 /** Sombra suave bajo el novio / objetos pegados al piso */
 export function drawFloorShadow(ctx: CanvasRenderingContext2D, x: number, heightAboveFloor: number, w: number) {
   const k = Math.max(0.25, 1 - heightAboveFloor / 340);
