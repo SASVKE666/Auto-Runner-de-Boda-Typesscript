@@ -129,6 +129,34 @@ class SoundManager {
     [523, 659, 784].forEach((f, i) => this.tone('triangle', f, f, 0.25, 0.12, i * 0.09));
   }
 
+  playGift() {
+    [523, 659, 784, 1047].forEach((f, i) => this.tone('triangle', f, f, 0.2, 0.13, i * 0.07));
+    this.tone('sine', 1568, 1568, 0.35, 0.08, 0.3);
+  }
+
+  playFlap() {
+    this.tone('triangle', 260, 430, 0.12, 0.09);
+  }
+
+  playHop() {
+    this.tone('square', 170, 340, 0.14, 0.06);
+  }
+
+  playFlip() {
+    this.tone('sine', 700, 280, 0.16, 0.1);
+    this.tone('sine', 280, 720, 0.16, 0.06, 0.08);
+  }
+
+  playCrush() {
+    this.tone('sawtooth', 420, 80, 0.2, 0.14);
+    this.tone('triangle', 1500, 500, 0.15, 0.08);
+  }
+
+  playAchievement() {
+    [659, 784, 988, 1319].forEach((f, i) => this.tone('triangle', f, f, 0.25, 0.13, i * 0.09));
+    this.tone('sine', 1976, 1976, 0.5, 0.07, 0.36);
+  }
+
   /* ---------------- Propulsor (ruido filtrado) ---------------- */
 
   startThrust() {

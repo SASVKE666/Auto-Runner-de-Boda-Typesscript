@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { RunnerCanvas, GameStats } from './game/RunnerCanvas';
 import { sound } from './game/sound';
@@ -6,26 +6,23 @@ import { MainMenu } from './components/MainMenu';
 import { GameOverModal } from './components/GameOverModal';
 import { HowToPlayModal } from './components/HowToPlayModal';
 import { IntroSequence } from './components/IntroSequence';
+import { AchievementsModal } from './components/AchievementsModal';
+import { ACHIEVEMENTS } from './game/achievements';
+import { getSave, subscribeSave } from './game/save';
 
 type Phase = 'intro' | 'menu' | 'playing' | 'gameover';
 
-const STORAGE_BEST = 'novio_en_fuga_best';
 const STORAGE_MUTED = 'novio_en_fuga_muted';
-
-function readNumber(key: string) {
-  try {
-    return Number(localStorage.getItem(key) || '0') || 0;
-  } catch {
-    return 0;
-  }
-}
 
 export default function App() {
   const [phase, setPhase] = useState<Phase>('intro');
   const [gameKey, setGameKey] = useState(1);
   const [paused, setPaused] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [best, setBest] = useState(() => readNumber(STORAGE_BEST));
+  const [showAch, setShowAch] = useState(false);
+  const save = useSyncExternalStore(subscribeSave, getSave, getSave);
+  const best = save.best;
+  const bestAtStart = useRef(best);
   const [muted, setMuted] = useState(() => {
     try {
       return localStorage.getItem(STORAGE_MUTED) === '1';
@@ -35,8 +32,6 @@ export default function App() {
   });
   const [lastStats, setLastStats] = useState<GameStats | null>(null);
   const [newRecord, setNewRecord] = useState(false);
-  const bestRef = useRef(best);
-  bestRef.current = best;
 
   useEffect(() => {
     sound.enabled = !muted;
@@ -50,6 +45,7 @@ export default function App() {
   const play = useCallback(() => {
     setPaused(false);
     setNewRecord(false);
+    bestAtStart.current = getSave().best;
     setGameKey((k) => k + 1);
     setPhase('playing');
   }, []);
@@ -61,15 +57,8 @@ export default function App() {
 
   const handleGameOver = useCallback((stats: GameStats) => {
     setLastStats(stats);
-    if (stats.distance > bestRef.current) {
-      setNewRecord(bestRef.current > 0);
-      setBest(stats.distance);
-      try {
-        localStorage.setItem(STORAGE_BEST, String(stats.distance));
-      } catch {
-        /* sin almacenamiento */
-      }
-    }
+    // el motor ya guardó la partida; el récord se compara con el de antes de empezar
+    setNewRecord(bestAtStart.current > 0 && stats.distance > bestAtStart.current);
     setPhase('gameover');
   }, []);
 
@@ -80,6 +69,7 @@ export default function App() {
         if (e.code === 'Escape') setShowHelp(false);
         return;
       }
+      if (showAch) return; // el modal de logros maneja sus propias teclas
       if (phase === 'playing' && (e.code === 'KeyP' || e.code === 'Escape')) {
         setPaused((p) => !p);
       } else if (phase === 'menu' && (e.code === 'Enter' || e.code === 'Space')) {
@@ -91,7 +81,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, showHelp, play]);
+  }, [phase, showHelp, showAch, play]);
 
   // Pausa automática al cambiar de pestaña
   useEffect(() => {
@@ -156,7 +146,17 @@ export default function App() {
 
       {phase === 'intro' && <IntroSequence onComplete={goMenu} />}
 
-      {phase === 'menu' && <MainMenu onPlay={play} onHowToPlay={() => setShowHelp(true)} best={best} />}
+      {phase === 'menu' && (
+        <MainMenu
+          onPlay={play}
+          onHowToPlay={() => setShowHelp(true)}
+          onAchievements={() => setShowAch(true)}
+          best={best}
+          achDone={ACHIEVEMENTS.filter((a) => save.unlocked[a.id]).length}
+          achTotal={ACHIEVEMENTS.length}
+        />
+      )}
+      {showAch && <AchievementsModal save={save} onClose={() => setShowAch(false)} />}
       {showHelp && <HowToPlayModal onClose={() => setShowHelp(false)} />}
     </div>
   );

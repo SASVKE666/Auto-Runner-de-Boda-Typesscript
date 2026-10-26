@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { GameStats } from '../game/engine';
+import { ACHIEVEMENT_BY_ID } from '../game/achievements';
 
 interface GameOverModalProps {
   stats: GameStats;
@@ -50,6 +51,23 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ stats, best, newRe
         <div className="mt-3 font-display text-[#2a1420]">
           PUNTOS: <span className="text-rose-600 text-2xl">{stats.score.toLocaleString()}</span>
         </div>
+
+        {stats.unlocked.length > 0 && (
+          <div className="mt-3 rounded-2xl bg-amber-200 border-[3px] border-[#2a1420] p-2 text-left" data-testid="gameover-unlocked">
+            <div className="font-display text-[#7a1f3d] text-xs text-center">🏆 LOGROS DESBLOQUEADOS</div>
+            <ul className="mt-1 space-y-0.5 max-h-24 overflow-y-auto">
+              {stats.unlocked.map((id) => {
+                const a = ACHIEVEMENT_BY_ID[id];
+                return a ? (
+                  <li key={id} className="text-xs text-[#2a1420]">
+                    <span className="mr-1">{a.icon}</span>
+                    <b>{a.name}</b>
+                  </li>
+                ) : null;
+              })}
+            </ul>
+          </div>
+        )}
 
         <div className="mt-5 flex flex-col gap-2.5">
           <button onClick={onRetry} className="btn-primary">¡Intentar escapar otra vez!</button>

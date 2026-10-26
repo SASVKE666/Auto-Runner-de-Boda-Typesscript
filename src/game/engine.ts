@@ -9,7 +9,9 @@ import {
   BRIDE_LINES,
   CEIL_Y,
   COLORS,
+  FIRST_GIFT_M,
   FLOOR_Y,
+  GIFT_MIN_PATTERNS,
   GROOM_MAX_Y,
   GROOM_MIN_Y,
   GROOM_X,
@@ -21,15 +23,37 @@ import {
   POWERUP,
   PX_PER_M,
   START_GAP,
+  VEHICLES,
   W,
   ZONE_LENGTH_M,
   ZONES,
+  type VehicleKind,
 } from './constants';
 import { sound } from './sound';
 import { drawFloorShadow, drawVignette, drawZone } from './art/backgrounds';
-import { drawBride, drawGroom, GROOM_SKIN, NOZZLES } from './art/characters';
+import { drawBride, drawGroom, GROOM_SKIN, NOZZLES, type GroomPose } from './art/characters';
 import { circle, clamp, drawHeart, drawText, lerp, poly, rrect } from './art/core';
 import * as P from './art/props';
+import {
+  drawGift,
+  drawVehicleBack,
+  drawVehicleFront,
+  drawVehicleIcon,
+  vehicleTilt,
+  type VehicleAnim,
+} from './art/vehicles';
+import { createVehicle, pickVehicle, stepVehicle, vehicleRect, type StepEvents, type Vehicle } from './vehicles';
+import {
+  ACHIEVEMENT_BY_ID,
+  addRunToTotals,
+  liveSnapshot,
+  mergeRecords,
+  newlyEarned,
+  newRunStats,
+  runRecords,
+  type RunStats,
+} from './achievements';
+import { getSave, updateSave } from './save';
 
 export interface GameStats {
   score: number;
@@ -43,6 +67,10 @@ export interface GameStats {
   turboTimer: number;
   isGameOver: boolean;
   isPaused: boolean;
+  /** Vehículo en uso (o null) */
+  vehicle: VehicleKind | null;
+  /** Logros desbloqueados durante esta partida (ids) */
+  unlocked: string[];
 }
 
 export type GameState = 'ready' | 'playing' | 'caught' | 'over';
@@ -94,6 +122,13 @@ interface Missile {
   y: number;
   dead: boolean;
   trail: number;
+  dodged: boolean;
+}
+interface Gift {
+  x: number;
+  y: number;
+  phase: number;
+  taken: boolean;
 }
 interface Warning {
   y: number;
@@ -178,6 +213,7 @@ export class Game {
   missiles: Missile[] = [];
   warnings: Warning[] = [];
   pickups: Pickup[] = [];
+  gifts: Gift[] = [];
   particles: Particle[] = [];
   popups: Popup[] = [];
 
@@ -185,7 +221,14 @@ export class Game {
   brideY = GROOM_MAX_Y - 10;
   caughtT = 0;
   bubble: { text: string; t: number } | null = null;
-  banner: { title: string; sub: string; t: number } | null = null;
+  banner: { title: string; sub: string; t: number; dur?: number } | null = null;
+
+  // vehículo y logros
+  vehicle: Vehicle | null = null;
+  run: RunStats = newRunStats();
+  /** Ids de logros desbloqueados en esta partida */
+  unlockedNow: string[] = [];
+  toasts: { id: string; t: number }[] = [];
   zoneFrom = 0;
   zoneTo = 0;
   zoneT = 1;
@@ -205,6 +248,15 @@ export class Game {
   private repeats = 0;
   private thrustSound = false;
   private overNotified = false;
+  private prevThrust = false;
+  private committed = false;
+  private cleanStart = 0;
+  private ceilT = 0;
+  private nearMiss = false;
+  private achTimer = 0;
+  private sinceGift = 0;
+  private giftsSpawned = 0;
+  private lastKind: VehicleKind | null = null;
   private rnd: () => number;
 
   constructor(opts: GameOptions = {}) {
@@ -236,9 +288,11 @@ export class Game {
   }
 
   stats(): GameStats {
+    // al guardarse la partida la distancia queda congelada (coincide con el récord guardado)
+    const dist = Math.floor(this.committed ? this.run.distance : this.distM);
     return {
-      score: Math.floor(this.distM) + this.coins * 10,
-      distance: Math.floor(this.distM),
+      score: dist + this.coins * 10,
+      distance: dist,
       coins: this.coins,
       speed: Math.round(this.speed),
       brideDistancePct: clamp((this.gap / MAX_GAP) * 100, 0, 100),
@@ -247,6 +301,8 @@ export class Game {
       turboTimer: this.turbo,
       isGameOver: this.state === 'over' || this.state === 'caught',
       isPaused: false,
+      vehicle: this.vehicle?.kind ?? null,
+      unlocked: [...this.unlockedNow],
     };
   }
 
@@ -267,6 +323,73 @@ export class Game {
     }
   }
 
+  /** Al salir de la partida (menú, cerrar pestaña): guarda lo recorrido hasta ahora */
+  dispose() {
+    this.silence();
+    if (this.state === 'playing' || this.state === 'caught') this.finishRun();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Logros y guardado                                                   */
+  /* ------------------------------------------------------------------ */
+
+  private checkAchievements() {
+    const save = getSave();
+    const earned = newlyEarned(save, liveSnapshot(save, this.run, this.committed));
+    if (!earned.length) return;
+    updateSave((d) => {
+      for (const a of earned) d.unlocked[a.id] = Date.now();
+    });
+    for (const a of earned) {
+      this.unlockedNow.push(a.id);
+      this.toasts.push({ id: a.id, t: 3.8 });
+    }
+    sound.playAchievement();
+  }
+
+  /** Suma esta partida a los totales y récords (una sola vez) */
+  private commitRun() {
+    if (this.committed || this.state === 'ready') return;
+    this.committed = true;
+    const run = this.run;
+    updateSave((d) => {
+      d.totals = addRunToTotals(d.totals, run);
+      d.totals.games += 1;
+      if (run.caught) d.totals.caught += 1;
+      d.records = mergeRecords(d.records, runRecords(run));
+      d.best = Math.max(d.best, Math.floor(run.distance));
+    });
+    this.checkAchievements();
+  }
+
+  private finishRun() {
+    this.run.distance = this.distM;
+    this.checkAchievements();
+    this.commitRun();
+  }
+
+  /** Contadores por partida que dependen del tiempo/distancia */
+  private trackRun(dt: number, dx: number) {
+    const run = this.run;
+    run.distance = this.distM;
+    if (this.vehicle) run.vehicleMeters += dx / PX_PER_M;
+    run.maxClean = Math.max(run.maxClean, this.distM - this.cleanStart);
+    const minY = this.vehicle ? VEHICLES[this.vehicle.kind].minY : GROOM_MIN_Y;
+    if (this.cy <= minY + 0.5) {
+      this.ceilT += dt;
+      run.maxCeil = Math.max(run.maxCeil, this.ceilT);
+    } else {
+      this.ceilT = 0;
+    }
+    if (this.gap <= 30) this.nearMiss = true;
+    else if (this.nearMiss && this.gap >= 110) run.closeCall = true;
+    this.achTimer += dt;
+    if (this.achTimer >= 0.25) {
+      this.achTimer = 0;
+      this.checkAchievements();
+    }
+  }
+
   /* ------------------------------------------------------------------ */
   /* Utilidades                                                          */
   /* ------------------------------------------------------------------ */
@@ -279,6 +402,15 @@ export class Game {
   }
   private get playerRect(): Rect {
     return { x: GROOM_X - 15, y: this.cy - 34, w: 30, h: 66 };
+  }
+  /** Caja de colisión actual: la del vehículo si va a bordo, si no la del novio */
+  private get hitRect(): Rect {
+    return this.vehicle ? vehicleRect(this.vehicle.kind, this.cy) : this.playerRect;
+  }
+  /** ¿Toca la caja de colisión un punto con radio r? */
+  private touches(x: number, y: number, r: number) {
+    const b = this.hitRect;
+    return Math.hypot(x - clamp(x, b.x, b.x + b.w), y - clamp(y, b.y, b.y + b.h)) < r;
   }
   private get brideX() {
     return GROOM_X - this.gap - 36;
@@ -556,6 +688,14 @@ export class Game {
     return 100;
   }
 
+  private pGift() {
+    const x0 = W + 80;
+    const y = this.r(170, 390);
+    this.gifts.push({ x: x0 + 80, y, phase: this.r(0, 6), taken: false });
+    this.ringsLine(x0 - 40, y, 3, 34);
+    return 100;
+  }
+
   private spawnPattern() {
     const d = clamp(this.distM / 2000, 0, 1);
     const m = this.distM;
@@ -563,8 +703,14 @@ export class Game {
 
     // Primeros patrones guiados
     const script = ['ringsLine', 'tower', 'ringsWave', 'zapperH', 'chandelier'];
+    const giftDue =
+      !this.vehicle &&
+      m >= FIRST_GIFT_M &&
+      (this.giftsSpawned === 0 || (this.sinceGift >= GIFT_MIN_PATTERNS && this.rnd() < 0.45));
     if (this.patternIndex < script.length) {
       name = script[this.patternIndex];
+    } else if (giftDue) {
+      name = 'gift';
     } else if (this.sincePowerup >= 7 && this.rnd() < 0.5) {
       name = 'powerup';
     } else {
@@ -620,6 +766,11 @@ export class Game {
         width = this.pPowerup();
         hazard = false;
         break;
+      case 'gift':
+        width = this.pGift();
+        hazard = false;
+        this.giftsSpawned++;
+        break;
       case 'zapperV':
         width = this.pZapper('v');
         break;
@@ -657,6 +808,7 @@ export class Game {
     this.lastPattern = name;
     this.patternIndex++;
     this.sincePowerup = name === 'powerup' ? 0 : this.sincePowerup + 1;
+    this.sinceGift = name === 'gift' ? 0 : this.sinceGift + 1;
     this.lastWasHazard = hazard;
 
     const gapAfter = hazard ? 170 + this.speed * 0.55 : 70 + this.r(0, 90);
@@ -670,6 +822,8 @@ export class Game {
   update(dtRaw: number, thrust: boolean) {
     const dt = Math.min(dtRaw, 1 / 30);
     this.t += dt;
+    for (const tst of this.toasts) tst.t -= dt;
+    this.toasts = this.toasts.filter((tst) => tst.t > 0);
 
     if (this.state === 'ready') {
       this.thrusting = false;
@@ -694,10 +848,12 @@ export class Game {
     }
 
     // ---------------- playing ----------------
-    this.thrusting = thrust;
-    if (thrust !== this.thrustSound) {
-      this.thrustSound = thrust;
-      if (thrust) sound.startThrust();
+    const tap = thrust && !this.prevThrust; // flanco de subida: un toque nuevo
+    this.prevThrust = thrust;
+    this.thrusting = thrust && !this.vehicle;
+    if (this.thrusting !== this.thrustSound) {
+      this.thrustSound = this.thrusting;
+      if (this.thrusting) sound.startThrust();
       else sound.stopThrust();
     }
 
@@ -707,25 +863,19 @@ export class Game {
     this.speed += (target - this.speed) * Math.min(1, dt * 2.2);
 
     // física vertical
-    this.vy += (thrust ? -THRUST_ACC : GRAVITY) * dt;
-    this.vy = clamp(this.vy, VY_UP, VY_DOWN);
-    this.cy += this.vy * dt;
-    const wasGrounded = this.grounded;
-    if (this.cy >= GROOM_MAX_Y) {
-      this.cy = GROOM_MAX_Y;
-      if (this.vy > 0) this.vy = 0;
-    }
-    if (this.cy <= GROOM_MIN_Y) {
-      this.cy = GROOM_MIN_Y;
-      if (this.vy < 0) this.vy = 0;
-    }
-    this.grounded = this.cy >= GROOM_MAX_Y - 0.5 && this.vy >= 0;
-    if (this.grounded && !wasGrounded) {
-      this.burst('dust', GROOM_X - 4, FLOOR_Y - 2, 5, ['#e9d3bd', '#f8ecdd'], 90, 0.5, -60);
+    if (this.vehicle) {
+      const body = { cy: this.cy, vy: this.vy, grounded: this.grounded };
+      const ev = stepVehicle(this.vehicle, body, { thrust, tap, speed: this.speed }, dt);
+      this.cy = body.cy;
+      this.vy = body.vy;
+      this.grounded = body.grounded;
+      this.vehicleFx(ev, dt);
+    } else {
+      this.stepJetpack(thrust, dt);
     }
 
     // espuma del propulsor
-    if (thrust) {
+    if (this.thrusting) {
       this.foamAcc += dt * (this.turbo > 0 ? 170 : 110);
       while (this.foamAcc >= 1) {
         this.foamAcc -= 1;
@@ -745,7 +895,7 @@ export class Game {
       }
     }
     // polvo al correr
-    if (this.grounded) {
+    if (this.grounded && !this.vehicle) {
       this.dustAcc += dt * 18;
       while (this.dustAcc >= 1) {
         this.dustAcc -= 1;
@@ -770,6 +920,7 @@ export class Game {
     // entidades
     for (const r of this.rings) r.x -= dx;
     for (const p of this.pickups) p.x -= dx;
+    for (const g of this.gifts) g.x -= dx;
     for (const tw of this.towers) tw.x -= dx;
     for (const ch of this.chandeliers) ch.x -= dx;
     for (const z of this.zappers) {
@@ -780,6 +931,10 @@ export class Game {
     for (const mi of this.missiles) {
       mi.x -= (this.speed + MISSILE_EXTRA) * dt;
       mi.trail += dt;
+      if (!mi.dodged && !mi.dead && mi.x < GROOM_X - 70) {
+        mi.dodged = true; // pasó de largo sin tocarte
+        this.run.dodged++;
+      }
       if (this.rnd() < dt * 40) {
         this.emit({
           kind: 'petal',
@@ -805,7 +960,7 @@ export class Game {
       }
       if (w.age >= 0 && w.age < WARN_LOCK) w.y += (this.cy - w.y) * Math.min(1, dt * 7);
       if (w.age >= WARN_LAUNCH) {
-        this.missiles.push({ x: W + 60, y: w.y, dead: false, trail: 0 });
+        this.missiles.push({ x: W + 60, y: w.y, dead: false, trail: 0, dodged: false });
         sound.playLaunch();
       }
     }
@@ -816,10 +971,12 @@ export class Game {
 
     // colisiones y recompensas
     this.collide(dt);
+    this.trackRun(dt, dx);
 
     // limpieza fuera de pantalla
     this.rings = this.rings.filter((r) => !r.taken && r.x > -60);
     this.pickups = this.pickups.filter((p) => !p.taken && p.x > -60);
+    this.gifts = this.gifts.filter((g) => !g.taken && g.x > -60);
     this.towers = this.towers.filter((o) => !o.dead && o.x > -200);
     this.chandeliers = this.chandeliers.filter((o) => !o.dead && o.x > -120);
     this.zappers = this.zappers.filter((z) => !z.dead && z.cx > -320);
@@ -879,6 +1036,76 @@ export class Game {
     this.popups = this.popups.filter((p) => p.life > 0);
   }
 
+  /** Física del jetpack: mantener = sube, soltar = cae */
+  private stepJetpack(thrust: boolean, dt: number) {
+    this.vy += (thrust ? -THRUST_ACC : GRAVITY) * dt;
+    this.vy = clamp(this.vy, VY_UP, VY_DOWN);
+    this.cy += this.vy * dt;
+    const wasGrounded = this.grounded;
+    if (this.cy >= GROOM_MAX_Y) {
+      this.cy = GROOM_MAX_Y;
+      if (this.vy > 0) this.vy = 0;
+    }
+    if (this.cy <= GROOM_MIN_Y) {
+      this.cy = GROOM_MIN_Y;
+      if (this.vy < 0) this.vy = 0;
+    }
+    this.grounded = this.cy >= GROOM_MAX_Y - 0.5 && this.vy >= 0;
+    if (this.grounded && !wasGrounded) {
+      this.burst('dust', GROOM_X - 4, FLOOR_Y - 2, 5, ['#e9d3bd', '#f8ecdd'], 90, 0.5, -60);
+    }
+  }
+
+  /** Sonidos y partículas de cada vehículo */
+  private vehicleFx(ev: StepEvents, dt: number) {
+    const v = this.vehicle;
+    if (!v) return;
+    if (ev.flap) {
+      sound.playFlap();
+      this.run.flaps++;
+      this.burst('petal', GROOM_X - 34, this.cy + 4, 4, ['#ffffff', '#ffd1e0', '#fff0f5'], 120, 0.7, 120);
+    }
+    if (ev.hop) {
+      sound.playHop();
+      this.burst('dust', GROOM_X, FLOOR_Y - 4, 6, ['#efe0cf', '#ffffff'], 120, 0.5, -40);
+    }
+    if (ev.land) {
+      this.burst('dust', GROOM_X, FLOOR_Y - 4, 8, ['#efe0cf', '#ffffff'], 140, 0.5, -40);
+      if (v.kind === 'limo') this.shake = Math.max(this.shake, 0.06);
+    }
+    if (ev.flip) {
+      sound.playFlip();
+      this.run.flips++;
+      this.burst('heart', GROOM_X, this.cy, 6, [COLORS.rose, COLORS.blush, '#ff6b9a'], 180, 0.8, -60);
+    }
+    if (v.kind === 'limo' && this.grounded && this.rnd() < dt * 24) {
+      this.emit({
+        kind: 'dust',
+        x: GROOM_X - 60,
+        y: this.cy + 30,
+        vx: -this.speed * 0.4 + this.r(-30, 10),
+        vy: this.r(-50, -15),
+        life: 0.45,
+        max: 0.45,
+        size: this.r(3, 6),
+        color: '#d9cbbd',
+      });
+    }
+    if (v.kind === 'cupid' && this.rnd() < dt * 10) {
+      this.emit({
+        kind: 'heart',
+        x: GROOM_X - 44,
+        y: this.cy + this.r(-8, 8),
+        vx: -this.speed * 0.4,
+        vy: this.r(-20, 20),
+        life: 0.7,
+        max: 0.7,
+        size: this.r(4, 6),
+        color: this.pick([COLORS.rose, COLORS.blush]),
+      });
+    }
+  }
+
   private updateParticles(dt: number) {
     for (const p of this.particles) {
       p.life -= dt;
@@ -924,7 +1151,7 @@ export class Game {
   }
 
   private collide(dt: number) {
-    const pr = this.playerRect;
+    const pr = this.hitRect;
     const cxp = GROOM_X;
     const cyp = this.cy;
 
@@ -946,6 +1173,8 @@ export class Game {
       if (Math.hypot(r.x - nx, r.y - ny) < 17) {
         r.taken = true;
         this.coins++;
+        this.run.rings++;
+        if (this.magnet > 0) this.run.ringsMagnet++;
         this.ringsBonus++;
         sound.playCoin();
         this.burst('spark', r.x, r.y, 5, [COLORS.gold, '#fff3b8'], 140, 0.4, 0);
@@ -959,7 +1188,7 @@ export class Game {
     // power-ups
     for (const p of this.pickups) {
       if (p.taken) continue;
-      if (Math.hypot(p.x - cxp, p.y - cyp) < 44) {
+      if (this.touches(p.x, p.y, 30)) {
         p.taken = true;
         sound.playPowerup();
         this.burst('confetti', p.x, p.y, 16, [COLORS.rose, COLORS.gold, COLORS.blush, '#9bd7ff'], 260, 0.9, 600);
@@ -977,10 +1206,17 @@ export class Game {
       }
     }
 
+    // regalos de boda -> vehículo
+    for (const g of this.gifts) {
+      if (g.taken || this.vehicle) continue;
+      if (this.touches(g.x, g.y, 30)) this.openGift(g);
+    }
+
     // peligros
     const test = (hit: boolean, obj: { dead: boolean }, ex: number, ey: number) => {
       if (!hit || obj.dead) return;
       if (this.turbo > 0) {
+        this.run.smashTurbo++;
         obj.dead = true;
         this.burst('confetti', ex, ey, 14, [COLORS.rose, COLORS.gold, '#fff', COLORS.blush], 300, 0.9, 700);
         sound.playExplosion();
@@ -1005,7 +1241,12 @@ export class Game {
     }
     for (const tw of this.towers) {
       if (Math.abs(tw.x - GROOM_X) > 160) continue;
-      test(P.towerRects(tw.x, tw.rows).some((r) => overlap(pr, r)), tw, GROOM_X + 10, this.cy);
+      const hit = P.towerRects(tw.x, tw.rows).some((r) => overlap(pr, r));
+      if (hit && !tw.dead && this.vehicle?.kind === 'limo') {
+        this.crushTower(tw); // la limusina aplasta las torres de copas sin daño
+        continue;
+      }
+      test(hit, tw, GROOM_X + 10, this.cy);
     }
     for (const ch of this.chandeliers) {
       if (Math.abs(ch.x - GROOM_X) > 120) continue;
@@ -1016,8 +1257,72 @@ export class Game {
     }
   }
 
+  private openGift(g: Gift) {
+    g.taken = true;
+    const kind = pickVehicle(this.rnd, this.lastKind);
+    this.lastKind = kind;
+    this.vehicle = createVehicle(kind);
+    const d = VEHICLES[kind];
+    this.run.gifts++;
+    this.run.kinds[kind] = true;
+    this.cy = clamp(this.cy, d.minY, d.maxY);
+    this.vy = 0;
+    this.grounded = false;
+    this.invuln = Math.max(this.invuln, 0.5);
+    this.flash = Math.max(this.flash, 0.3);
+    sound.playGift();
+    this.burst('confetti', g.x, g.y, 22, [COLORS.rose, COLORS.gold, COLORS.blush, '#9bd7ff', '#ffffff'], 300, 1, 600);
+    this.popup('¡REGALO DE BODA!', GROOM_X + 10, this.cy - 70, COLORS.gold);
+    this.banner = { title: d.name.toUpperCase(), sub: d.how, t: 3.8, dur: 3.8 };
+  }
+
+  private crushTower(tw: Tower) {
+    tw.dead = true;
+    this.run.towersCrushed++;
+    sound.playCrush();
+    this.shake = Math.max(this.shake, 0.18);
+    this.burst('confetti', tw.x, FLOOR_Y - 50, 22, ['#eaf6ff', '#f7d36a', '#ffffff', '#cfe9ff'], 340, 0.9, 700);
+    this.burst('spark', tw.x, FLOOR_Y - 70, 8, ['#ffffff', '#fff3b8'], 260, 0.5, 0);
+    this.popup('¡CRASH!', tw.x, FLOOR_Y - 120, '#cfe9ff');
+  }
+
+  /** El vehículo absorbe el golpe y se destruye; el novio sigue con el jetpack, sin castigo */
+  private breakVehicle(ex: number, ey: number) {
+    const v = this.vehicle;
+    if (!v) return;
+    v.hp--;
+    if (v.hp > 0) return;
+    const d = VEHICLES[v.kind];
+    this.vehicle = null;
+    this.invuln = 1.6;
+    this.shake = 0.4;
+    this.flash = 0.35;
+    sound.playHit();
+    sound.playExplosion();
+    const colors =
+      v.kind === 'swan'
+        ? ['#ffffff', '#ffb3cc', '#ffd1e0']
+        : v.kind === 'limo'
+          ? ['#dfe8ef', COLORS.rose, COLORS.gold, '#ffffff']
+          : ['#9bd7ff', COLORS.gold, '#ffffff', COLORS.blush];
+    this.burst('confetti', GROOM_X, this.cy, 26, colors, 380, 1, 700);
+    this.burst('petal', GROOM_X, this.cy, 12, colors, 300, 0.9, 400);
+    this.burst('spark', ex, ey, 10, ['#fff3b8', '#ff8fc0'], 260, 0.5, 0);
+    this.popup(`¡${d.name} destruida!`.replace('¡Cisne', '¡Cisne').replace('Limusina Recién Casados', 'Limusina'), GROOM_X + 10, this.cy - 60, '#ffd9e4');
+    this.cy = clamp(this.cy, GROOM_MIN_Y, GROOM_MAX_Y);
+    this.vy = -220;
+    this.grounded = false;
+  }
+
   private takeHit(ex: number, ey: number) {
+    this.run.hits++;
+    this.cleanStart = this.distM;
+    if (this.vehicle) {
+      this.breakVehicle(ex, ey);
+      return;
+    }
     if (this.shield) {
+      this.run.shieldsUsed++;
       this.shield = false;
       this.invuln = 1;
       sound.playShieldBreak();
@@ -1043,6 +1348,7 @@ export class Game {
 
   private catchGroom() {
     this.gap = Math.max(this.gap, 0);
+    this.run.caught = true;
     this.state = 'caught';
     this.caughtT = 0;
     this.thrusting = false;
@@ -1050,6 +1356,7 @@ export class Game {
     sound.playGameOver();
     this.bubble = { text: '¡TE ATRAPÉ!', t: 2 };
     this.burst('heart', GROOM_X, this.cy - 20, 18, [COLORS.rose, COLORS.blush, '#ff6b9a'], 220, 1.4, -40);
+    this.finishRun();
   }
 
   /* ------------------------------------------------------------------ */
@@ -1081,6 +1388,7 @@ export class Game {
       if (r.x > -30 && r.x < W + 30) P.drawRing(ctx, r.x, r.y, this.t, r.phase);
     }
     for (const p of this.pickups) P.drawPickup(ctx, p.type, p.x, p.y, this.t, p.phase);
+    for (const g of this.gifts) drawGift(ctx, g.x, g.y, this.t, g.phase);
 
     // obstáculos
     for (const tw of this.towers) P.drawTower(ctx, tw.x, tw.rows);
@@ -1093,19 +1401,9 @@ export class Game {
     const grabbing = this.state === 'caught' || this.gap < 55;
     drawBride(ctx, this.brideX, this.brideY, this.t, closeness, grabbing);
 
-    // novio
+    // novio (con o sin vehículo)
     const fear = clamp(0.2 + closeness * 1.1, 0, 1);
-    drawGroom(ctx, GROOM_X, this.cy, {
-      t: this.state === 'ready' ? 0.3 : this.t,
-      thrusting: this.thrusting,
-      grounded: this.grounded,
-      vy: this.vy,
-      fear,
-      stunned: this.invuln > 0 && this.turbo <= 0 && this.state !== 'ready',
-      shield: this.shield,
-      turbo: this.turbo > 0,
-      caught: this.state === 'caught' || this.state === 'over',
-    });
+    this.drawPlayer(ctx, fear);
 
     // partículas
     this.drawParticles(ctx);
@@ -1133,7 +1431,69 @@ export class Game {
     this.drawPopups(ctx);
     this.drawHud(ctx);
     this.drawBanner(ctx);
+    this.drawToasts(ctx);
     this.drawOverlays(ctx);
+  }
+
+  private drawPlayer(ctx: CanvasRenderingContext2D, fear: number) {
+    const v = this.vehicle;
+    const pose: GroomPose = {
+      t: this.state === 'ready' ? 0.3 : this.t,
+      thrusting: this.thrusting,
+      grounded: this.grounded,
+      vy: this.vy,
+      fear,
+      stunned: !v && this.invuln > 0 && this.turbo <= 0 && this.state !== 'ready',
+      shield: this.shield,
+      turbo: this.turbo > 0,
+      caught: this.state === 'caught' || this.state === 'over',
+    };
+    if (!v) {
+      drawGroom(ctx, GROOM_X, this.cy, pose);
+      return;
+    }
+    const d = VEHICLES[v.kind];
+    const anim: VehicleAnim = { t: this.t, pulse: v.pulse, wheel: v.wheel, vy: this.vy, grounded: this.grounded };
+    ctx.save();
+    ctx.translate(GROOM_X, this.cy);
+    if (v.kind === 'cupid') ctx.scale(1, v.flip); // la carroza se voltea con la gravedad
+    ctx.rotate(vehicleTilt(v.kind, anim));
+    ctx.translate(-GROOM_X, -this.cy);
+    drawVehicleBack(ctx, v.kind, GROOM_X, this.cy, anim);
+    drawGroom(ctx, GROOM_X + d.riderX, this.cy + d.riderY, { ...pose, rider: true, thrusting: false, grounded: false });
+    drawVehicleFront(ctx, v.kind, GROOM_X, this.cy, anim);
+    ctx.restore();
+  }
+
+  private drawToasts(ctx: CanvasRenderingContext2D) {
+    this.toasts.slice(0, 3).forEach((tst, i) => {
+      const a = ACHIEVEMENT_BY_ID[tst.id];
+      if (!a) return;
+      const inK = clamp((3.8 - tst.t) * 5, 0, 1);
+      const outK = clamp(tst.t * 3, 0, 1);
+      const k = Math.min(inK, outK);
+      const e = 1 - Math.pow(1 - inK, 3);
+      const w = 340;
+      const h = 56;
+      const x = W / 2 - w / 2;
+      const y = 58 + i * 64 - (1 - e) * 40;
+      ctx.save();
+      ctx.globalAlpha = k;
+      rrect(ctx, x, y, w, h, 16, 'rgba(42,11,29,.94)', 3.4);
+      ctx.beginPath();
+      ctx.roundRect(x + 4, y + 4, w - 8, h - 8, 12);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = COLORS.gold;
+      ctx.stroke();
+      ctx.font = '30px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(a.icon, x + 34, y + h / 2 + 2);
+      drawText(ctx, '¡LOGRO DESBLOQUEADO!', x + 64, y + 22, 12, COLORS.gold, { strokeW: 3 });
+      drawText(ctx, a.name, x + 64, y + 44, 19, COLORS.cream, { strokeW: 4 });
+      ctx.restore();
+    });
   }
 
   private drawParticles(ctx: CanvasRenderingContext2D) {
@@ -1293,6 +1653,11 @@ export class Game {
     // power-ups activos
     let ix = 34;
     const iy = 92;
+    if (this.vehicle) {
+      rrect(ctx, 10, iy - 24, 84, 48, 14, 'rgba(42,20,32,.6)', 2.6);
+      drawVehicleIcon(ctx, this.vehicle.kind, 52, iy + 4, 56, this.t);
+      ix += 92;
+    }
     const bar = (type: PickupType, frac2: number) => {
       P.drawPickupIcon(ctx, type, ix, iy, 17);
       if (frac2 >= 0) {
@@ -1310,7 +1675,7 @@ export class Game {
   private drawBanner(ctx: CanvasRenderingContext2D) {
     if (!this.banner) return;
     const b = this.banner;
-    const inK = clamp((3 - b.t) * 4, 0, 1);
+    const inK = clamp(((b.dur ?? 3) - b.t) * 4, 0, 1);
     const outK = clamp(b.t * 2.5, 0, 1);
     const a = Math.min(inK, outK);
     const y = 150 + (1 - inK) * -20;

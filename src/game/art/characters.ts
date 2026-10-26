@@ -22,6 +22,8 @@ export interface GroomPose {
   shield: boolean;
   turbo: boolean;
   caught?: boolean;
+  /** Va sentado en un vehículo: sin jetpack, brazos al frente (el vehículo tapa las piernas) */
+  rider?: boolean;
 }
 
 /** Punto (relativo al centro del novio) por donde sale la espuma de champaña */
@@ -80,7 +82,9 @@ function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, fi
 export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p: GroomPose) {
   const { t, grounded, thrusting, fear } = p;
   const run = grounded ? Math.sin(t * 17) : 0;
-  const lean = p.caught
+  const lean = p.rider
+    ? 0.05 + clamp(p.vy * 0.0002, -0.05, 0.08)
+    : p.caught
     ? 0
     : grounded
       ? 0.07
@@ -103,17 +107,19 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
   ctx.rotate(lean);
   if (p.stunned && Math.floor(t * 16) % 2 === 0) ctx.globalAlpha = 0.42;
 
-  // --- Jetpack: dos botellas de champaña ---
-  bottle(ctx, -25, 2, -0.1);
-  bottle(ctx, -17, 4, 0.06);
-  // correa
-  ctx.save();
-  ctx.fillStyle = COLORS.burgundy;
-  ctx.fillRect(-26, -3, 14, 5);
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = COLORS.ink;
-  ctx.strokeRect(-26, -3, 14, 5);
-  ctx.restore();
+  // --- Jetpack: dos botellas de champaña (no se ve cuando va en un vehículo) ---
+  if (!p.rider) {
+    bottle(ctx, -25, 2, -0.1);
+    bottle(ctx, -17, 4, 0.06);
+    // correa
+    ctx.save();
+    ctx.fillStyle = COLORS.burgundy;
+    ctx.fillRect(-26, -3, 14, 5);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = COLORS.ink;
+    ctx.strokeRect(-26, -3, 14, 5);
+    ctx.restore();
+  }
 
   // --- Brazo trasero ---
   let backArm: number;
@@ -130,6 +136,10 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
   } else {
     backArm = 2.3 + Math.sin(t * 13) * 0.35;
     frontArm = -2.3 + Math.sin(t * 13 + 1.7) * 0.35;
+  }
+  if (p.rider) {
+    backArm = -1.1;
+    frontArm = -1.3 + Math.sin(t * 9) * 0.04;
   }
   limb(ctx, -3, -12, backArm, 18, 8, COLORS.tux, COLORS.cream);
 
@@ -148,6 +158,10 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
   } else {
     legA = -0.35 + Math.sin(t * 11) * 0.28;
     legB = 0.4 + Math.sin(t * 11 + 2) * 0.28;
+  }
+  if (p.rider) {
+    legA = 1.2;
+    legB = 1.4;
   }
   for (const a of [legB, legA]) {
     ctx.save();

@@ -79,3 +79,80 @@ export const MILESTONE_LINES = [
   '¡Tu suegra tomó el micrófono!',
   '¡Ni el pastel te va a salvar!',
 ];
+
+/* ------------------------------------------------------------------ */
+/* Vehículos (se consiguen con los regalos de boda)                    */
+/* ------------------------------------------------------------------ */
+
+export type VehicleKind = 'swan' | 'limo' | 'cupid';
+export const VEHICLE_KINDS: VehicleKind[] = ['swan', 'limo', 'cupid'];
+
+export interface VehicleDef {
+  name: string;
+  /** Cómo se controla (una línea, se muestra al recogerlo) */
+  how: string;
+  /** Descripción para el garaje */
+  blurb: string;
+  /** Caja de colisión (incluye al novio); centrada en (GROOM_X + ox, cy + oy) */
+  w: number;
+  h: number;
+  ox: number;
+  oy: number;
+  /** Rango vertical permitido para el centro (cy) */
+  minY: number;
+  maxY: number;
+  /** Posición del torso del novio respecto al centro del vehículo */
+  riderX: number;
+  riderY: number;
+  color: string;
+}
+
+export const VEHICLES: Record<VehicleKind, VehicleDef> = {
+  swan: {
+    name: 'Cisne Inflable',
+    how: 'TOCA para aletear · mantén para seguir aleteando',
+    blurb: 'Vuela con aletazos. Aguanta un golpe.',
+    w: 74,
+    h: 82,
+    ox: 0,
+    oy: -2,
+    minY: CEIL_Y + 50,
+    maxY: FLOOR_Y - 40,
+    riderX: -12,
+    riderY: -18,
+    color: '#ff9ec0',
+  },
+  limo: {
+    name: 'Limusina Recién Casados',
+    how: 'TOCA para saltar · mantén para saltar más alto',
+    blurb: 'Rueda por el piso y aplasta las torres de copas. Aguanta un golpe.',
+    w: 110,
+    h: 78,
+    ox: 0,
+    oy: 0,
+    minY: CEIL_Y + 50,
+    maxY: FLOOR_Y - 39,
+    riderX: -8,
+    riderY: -8,
+    color: '#f6c453',
+  },
+  cupid: {
+    name: 'Carroza de Cupido',
+    how: 'TOCA para invertir la gravedad (piso ⇄ techo)',
+    blurb: 'Salta entre el piso y el techo. Aguanta un golpe.',
+    w: 84,
+    h: 82,
+    ox: 4,
+    oy: 0,
+    minY: CEIL_Y + 42,
+    maxY: FLOOR_Y - 42,
+    riderX: -6,
+    riderY: -12,
+    color: '#9bd7ff',
+  },
+};
+
+/** Cada cuántos patrones (como mínimo) puede aparecer un regalo de boda */
+export const GIFT_MIN_PATTERNS = 10;
+/** Distancia (m) a partir de la cual aparece el primer regalo garantizado */
+export const FIRST_GIFT_M = 90;
