@@ -173,6 +173,8 @@ const VY_DOWN = 640;
 const BASE_SPEED = 330;
 /** Cada cuántos metros el marcador de distancia salta y cambia de color */
 const MILESTONE_EVERY = 250;
+/** Segundos que se muestra el título del vehículo (antes 3.8; ahora el 75 %) y que dura la calma sin peligros */
+const VEHICLE_TITLE_T = 2.85;
 /** Segundos que se muestra cada aviso de logro */
 const TOAST_T = 3.2;
 /** Colores del marcador de distancia: uno nuevo en cada meta (el primero es el normal) */
@@ -1441,7 +1443,34 @@ export class Game {
     this.flash = Math.max(this.flash, 0.3);
     sound.playGift();
     this.burst('confetti', g.x, g.y, 22, [COLORS.rose, COLORS.gold, COLORS.blush, '#9bd7ff', '#ffffff'], 300, 1, 600);
-    this.banner = { title: d.name.toUpperCase(), sub: d.how, t: 3.8, dur: 3.8 };
+    this.banner = { title: d.name.toUpperCase(), sub: d.how, t: VEHICLE_TITLE_T, dur: VEHICLE_TITLE_T };
+    // como en Jetpack Joyride: se destruyen las trampas y misiles que hay en pantalla y no llegan más
+    // hasta que el título termine, para poder leer los controles sin que te golpeen
+    this.clearHazards();
+    this.nextSpawn = Math.max(this.nextSpawn, this.dist + this.speed * VEHICLE_TITLE_T - (W + 80 - GROOM_X));
+  }
+
+  /** Destruye todos los peligros que existen ahora (con chispas los que se ven en pantalla) */
+  private clearHazards() {
+    const pop = (x: number, y: number) => {
+      if (x < -30 || x > W + 30) return;
+      this.burst('confetti', x, y, 10, [COLORS.rose, COLORS.gold, '#ffffff', COLORS.blush], 280, 0.8, 600);
+      this.burst('spark', x, y, 5, ['#ffffff', '#fff3b8'], 240, 0.45, 0);
+    };
+    for (const z of this.zappers) pop((z.x1 + z.x2) / 2, (z.y1 + z.y2) / 2);
+    for (const tw of this.towers) pop(tw.x, FLOOR_Y - 60);
+    for (const ch of this.chandeliers) pop(ch.x, CEIL_Y + ch.len + 50);
+    for (const mi of this.missiles) pop(mi.x, mi.y);
+    const any = this.zappers.length + this.towers.length + this.chandeliers.length + this.missiles.length + this.warnings.length;
+    this.zappers = [];
+    this.towers = [];
+    this.chandeliers = [];
+    this.missiles = [];
+    this.warnings = [];
+    if (any > 0) {
+      sound.playExplosion();
+      this.shake = Math.max(this.shake, 0.15);
+    }
   }
 
   private crushTower(tw: Tower) {
