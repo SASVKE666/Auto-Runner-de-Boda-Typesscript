@@ -165,14 +165,6 @@ interface Particle {
   vr: number;
   g: number;
 }
-interface Popup {
-  text: string;
-  x: number;
-  y: number;
-  life: number;
-  color: string;
-}
-
 // --- Parámetros de física del jetpack ---
 const THRUST_ACC = 2700;
 const GRAVITY = 1500;
@@ -187,10 +179,10 @@ const TOAST_T = 3.2;
 const METER_COLORS = ['#fff4e0', '#ffd34d', '#ff8fc0', '#7fe0a0', '#8fdcff', '#c9a3ff'];
 /**
  * Velocidad de scroll según los metros recorridos: sube de forma continua y suave,
- * rápido al principio y más despacio después (330 → ~705 a 2500 m → ~900 a 6000 m).
+ * rápido al principio y más despacio después (330 → ~740 a 2500 m → ~950 a 6000 m).
  */
 export function speedAt(m: number) {
-  return BASE_SPEED + Math.min(m, 2500) * 0.15 + Math.max(0, Math.min(m, 6000) - 2500) * 0.055;
+  return BASE_SPEED + Math.min(m, 2500) * 0.165 + Math.max(0, Math.min(m, 6000) - 2500) * 0.06;
 }
 /** Segundos de invulnerabilidad tras un golpe (antes 1.6) */
 const INVULN_HIT = 0.8;
@@ -239,7 +231,6 @@ export class Game {
   pickups: Pickup[] = [];
   gifts: Gift[] = [];
   particles: Particle[] = [];
-  popups: Popup[] = [];
 
   // novia / ambiente
   brideY = GROOM_MAX_Y - 10;
@@ -265,7 +256,8 @@ export class Game {
   private nextKnock = 1.6;
   zoneFrom = 0;
   zoneTo = 0;
-  zoneT = 1;
+  /** x de pantalla donde empieza el escenario nuevo (se acerca a 0 y entonces ocupa todo) */
+  zoneCutX = 0;
   shake = 0;
   flash = 0;
   private lastHitAt = -99;
@@ -649,10 +641,6 @@ export class Game {
     }
   }
 
-  private popup(text: string, x: number, y: number, color: string = COLORS.cream) {
-    this.popups.push({ text, x, y, life: 1.1, color });
-  }
-
   /* ------------------------------------------------------------------ */
   /* Generación de patrones                                              */
   /* ------------------------------------------------------------------ */
@@ -893,7 +881,7 @@ export class Game {
     const giftDue =
       !this.vehicle &&
       m >= FIRST_GIFT_M &&
-      (this.giftsSpawned === 0 || (this.sinceGift >= GIFT_MIN_PATTERNS && this.rnd() < 0.45));
+      (this.giftsSpawned === 0 || (this.sinceGift >= GIFT_MIN_PATTERNS && this.rnd() < 0.3));
     if (this.patternIndex < script.length) {
       name = script[this.patternIndex];
     } else if (giftDue) {
@@ -1204,13 +1192,13 @@ export class Game {
     // zonas e hitos
     const zone = Math.floor(this.distM / ZONE_LENGTH_M) % ZONES.length;
     if (zone !== this.zoneTo) {
+      // corte seco, como en Jetpack Joyride: el escenario nuevo entra por la derecha con un borde recto
       this.zoneFrom = this.zoneTo;
       this.zoneTo = zone;
-      this.zoneT = 0;
-      this.banner = { title: ZONES[ZONE_ORDER[zone]].name.toUpperCase(), sub: '¡Sigue corriendo!', t: 3 };
+      this.zoneCutX = W;
       sound.playZone();
     }
-    if (this.zoneT < 1) this.zoneT = Math.min(1, this.zoneT + dt / 2.2);
+    if (this.zoneCutX > 0) this.zoneCutX -= this.speed * dt;
     if (this.distM >= this.nextMilestone) {
       this.nextMilestone += MILESTONE_EVERY;
       this.milestones++;
@@ -1219,11 +1207,6 @@ export class Game {
     this.milestoneFx = Math.max(0, this.milestoneFx - dt / 0.7);
 
     this.updateParticles(dt);
-    for (const p of this.popups) {
-      p.life -= dt;
-      p.y -= 38 * dt;
-    }
-    this.popups = this.popups.filter((p) => p.life > 0);
   }
 
   /** Física del jetpack: mantener = sube, soltar = cae */
@@ -1370,7 +1353,6 @@ export class Game {
         this.burst('spark', r.x, r.y, 5, [COLORS.gold, '#fff3b8'], 140, 0.4, 0);
         if (this.ringsBonus % 12 === 0) {
           this.gap = Math.min(MAX_GAP, this.gap + 14);
-          this.popup('¡La novia se cansa!', GROOM_X + 40, this.cy - 50, '#9be7a8');
         }
       }
     }
@@ -1384,13 +1366,10 @@ export class Game {
         this.burst('confetti', p.x, p.y, 16, [COLORS.rose, COLORS.gold, COLORS.blush, '#9bd7ff'], 260, 0.9, 600);
         if (p.type === 'shield') {
           this.shield = true;
-          this.popup('¡VELO PROTECTOR!', GROOM_X + 20, this.cy - 60, '#bfe3ff');
         } else if (p.type === 'magnet') {
           this.magnet = POWERUP.magnetDuration;
-          this.popup('¡IMÁN DE ANILLOS!', GROOM_X + 20, this.cy - 60, '#ffb3c6');
         } else {
           this.turbo = POWERUP.turboDuration;
-          this.popup('¡LUNA DE MIEL EXPRESS!', GROOM_X + 20, this.cy - 60, COLORS.gold);
           this.flash = 0.5;
         }
       }
@@ -1462,7 +1441,6 @@ export class Game {
     this.flash = Math.max(this.flash, 0.3);
     sound.playGift();
     this.burst('confetti', g.x, g.y, 22, [COLORS.rose, COLORS.gold, COLORS.blush, '#9bd7ff', '#ffffff'], 300, 1, 600);
-    this.popup('¡REGALO DE BODA!', GROOM_X + 10, this.cy - 70, COLORS.gold);
     this.banner = { title: d.name.toUpperCase(), sub: d.how, t: 3.8, dur: 3.8 };
   }
 
@@ -1473,7 +1451,6 @@ export class Game {
     this.shake = Math.max(this.shake, 0.18);
     this.burst('confetti', tw.x, FLOOR_Y - 50, 22, ['#eaf6ff', '#f7d36a', '#ffffff', '#cfe9ff'], 340, 0.9, 700);
     this.burst('spark', tw.x, FLOOR_Y - 70, 8, ['#ffffff', '#fff3b8'], 260, 0.5, 0);
-    this.popup('¡CRASH!', tw.x, FLOOR_Y - 120, '#cfe9ff');
   }
 
   /** El vehículo absorbe el golpe y se destruye; el novio sigue con el jetpack, sin castigo */
@@ -1498,7 +1475,6 @@ export class Game {
     this.burst('confetti', GROOM_X, this.cy, 26, colors, 380, 1, 700);
     this.burst('petal', GROOM_X, this.cy, 12, colors, 300, 0.9, 400);
     this.burst('spark', ex, ey, 10, ['#fff3b8', '#ff8fc0'], 260, 0.5, 0);
-    this.popup(`¡${d.name} destruida!`.replace('¡Cisne', '¡Cisne').replace('Limusina Recién Casados', 'Limusina'), GROOM_X + 10, this.cy - 60, '#ffd9e4');
     this.cy = clamp(this.cy, GROOM_MIN_Y, GROOM_MAX_Y);
     this.vy = -220;
     this.grounded = false;
@@ -1518,7 +1494,6 @@ export class Game {
       sound.playShieldBreak();
       this.burst('spark', GROOM_X, this.cy, 22, ['#ffffff', COLORS.blush, '#bfe3ff'], 320, 0.7, 200);
       this.shake = 0.2;
-      this.popup('¡Velo roto!', GROOM_X + 20, this.cy - 56, '#bfe3ff');
       return;
     }
     this.gap -= HIT_PENALTY;
@@ -1560,10 +1535,14 @@ export class Game {
 
     // fondo
     const sc = this.dist;
-    if (this.zoneT < 1) {
+    if (this.zoneCutX > 0) {
       drawZone(ctx, ZONE_ORDER[this.zoneFrom], sc, 1);
-      const e = this.zoneT * this.zoneT * (3 - 2 * this.zoneT);
-      drawZone(ctx, ZONE_ORDER[this.zoneTo], sc, e);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(this.zoneCutX, 0, W - this.zoneCutX + 2, H);
+      ctx.clip();
+      drawZone(ctx, ZONE_ORDER[this.zoneTo], sc, 1);
+      ctx.restore();
     } else {
       drawZone(ctx, ZONE_ORDER[this.zoneTo], sc, 1);
     }
@@ -1626,7 +1605,6 @@ export class Game {
       ctx.fillRect(0, 0, W, H);
     }
 
-    this.drawPopups(ctx);
     if (!this.preRun) {
       this.drawHud(ctx);
       this.drawBanner(ctx);
@@ -1798,12 +1776,6 @@ export class Game {
       ctx.stroke();
     }
     ctx.restore();
-  }
-
-  private drawPopups(ctx: CanvasRenderingContext2D) {
-    for (const p of this.popups) {
-      drawText(ctx, p.text, p.x, p.y, 22, p.color, { align: 'center', alpha: clamp(p.life * 2, 0, 1) });
-    }
   }
 
   private miniFace(ctx: CanvasRenderingContext2D, x: number, y: number, bride: boolean) {

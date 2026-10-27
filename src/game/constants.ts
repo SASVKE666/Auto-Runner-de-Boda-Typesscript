@@ -134,6 +134,6 @@ export const VEHICLES: Record<VehicleKind, VehicleDef> = {
 };
 
 /** Cada cuántos patrones (como mínimo) puede aparecer un regalo de boda */
-export const GIFT_MIN_PATTERNS = 10;
+export const GIFT_MIN_PATTERNS = 30;
 /** Distancia (m) a partir de la cual aparece el primer regalo garantizado */
-export const FIRST_GIFT_M = 90;
+export const FIRST_GIFT_M = 400;
