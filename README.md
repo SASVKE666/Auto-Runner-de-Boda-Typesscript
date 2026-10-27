@@ -18,6 +18,10 @@ Runner de scroll lateral estilo *Jetpack Joyride*. Es el día de tu boda, te arr
 - **Logros** (menú → Logros): 29 retos en 6 grupos, con barra de progreso, y un **Garaje** con los vehículos descubiertos.
 - El progreso se guarda en `localStorage` (clave `novio_en_fuga_save_v1`) y se puede borrar desde el modal de Logros.
 
+## Inicio estilo Jetpack Joyride
+
+El menú es la fachada de la iglesia con el título y los botones encima. Al pulsar **¡CORRER!** la puerta se abomba, revienta en astillas y el novio sale corriendo hacia el jardín mientras el muro se aleja con el scroll (la novia asoma por el hueco). Al reintentar, la partida arranca directo en la salida. El primer nivel es el jardín, luego el salón y por último la catedral.
+
 ## Desarrollo
 ```bash
 npm install

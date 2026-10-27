@@ -23,6 +23,8 @@ export default function App() {
   const save = useSyncExternalStore(subscribeSave, getSave, getSave);
   const best = save.best;
   const bestAtStart = useRef(best);
+  const phaseRef = useRef<Phase>('intro');
+  phaseRef.current = phase;
   const [muted, setMuted] = useState(() => {
     try {
       return localStorage.getItem(STORAGE_MUTED) === '1';
@@ -46,12 +48,15 @@ export default function App() {
     setPaused(false);
     setNewRecord(false);
     bestAtStart.current = getSave().best;
-    setGameKey((k) => k + 1);
+    // desde el menú se sigue en la misma escena (el novio revienta la puerta);
+    // al reintentar se crea una partida nueva que arranca directo en la salida
+    if (phaseRef.current !== 'menu') setGameKey((k) => k + 1);
     setPhase('playing');
   }, []);
 
   const goMenu = useCallback(() => {
     setPaused(false);
+    setGameKey((k) => k + 1); // escena de inicio nueva (puerta cerrada)
     setPhase('menu');
   }, []);
 
@@ -92,17 +97,34 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', onHide);
   }, [phase]);
 
-  const inGame = phase === 'playing' || phase === 'gameover';
+  const showStage = phase !== 'intro';
 
   return (
     <div className="fixed inset-0 bg-[#1b0a14] flex items-center justify-center overflow-hidden select-none">
-      {inGame && (
-        <div className="relative w-full h-full flex items-center justify-center">
+      {showStage && (
+        <div className={`relative w-full h-full flex items-center justify-center${phase === 'menu' ? ' menu-top' : ''}`}>
           <div
             className="relative max-w-full max-h-full w-full"
-            style={{ aspectRatio: '16 / 9', maxWidth: 'calc(100vh * 16 / 9)' }}
+            style={{ aspectRatio: '16 / 9', maxWidth: 'calc(100vh * 16 / 9)', containerType: 'inline-size' }}
           >
-            <RunnerCanvas key={gameKey} isPaused={paused || phase === 'gameover'} best={best} onGameOver={handleGameOver} />
+            <RunnerCanvas
+              key={gameKey}
+              mode={phase === 'menu' ? 'title' : 'run'}
+              isPaused={paused || phase === 'gameover'}
+              best={best}
+              onGameOver={handleGameOver}
+            />
+
+            {phase === 'menu' && (
+              <MainMenu
+                onPlay={play}
+                onHowToPlay={() => setShowHelp(true)}
+                onAchievements={() => setShowAch(true)}
+                best={best}
+                achDone={ACHIEVEMENTS.filter((a) => save.unlocked[a.id]).length}
+                achTotal={ACHIEVEMENTS.length}
+              />
+            )}
 
             {phase === 'playing' && (
               <div className="absolute bottom-2 right-2 flex gap-2">
@@ -146,16 +168,6 @@ export default function App() {
 
       {phase === 'intro' && <IntroSequence onComplete={goMenu} />}
 
-      {phase === 'menu' && (
-        <MainMenu
-          onPlay={play}
-          onHowToPlay={() => setShowHelp(true)}
-          onAchievements={() => setShowAch(true)}
-          best={best}
-          achDone={ACHIEVEMENTS.filter((a) => save.unlocked[a.id]).length}
-          achTotal={ACHIEVEMENTS.length}
-        />
-      )}
       {showAch && <AchievementsModal save={save} onClose={() => setShowAch(false)} />}
       {showHelp && <HowToPlayModal onClose={() => setShowHelp(false)} />}
     </div>

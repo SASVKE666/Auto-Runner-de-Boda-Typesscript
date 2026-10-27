@@ -29,6 +29,7 @@ import {
 } from './constants';
 import { sound } from './sound';
 import { drawBackdropVeil, drawFloorShadow, drawVignette, drawZone } from './art/backgrounds';
+import { drawChurch, drawChurchCarpet, DOOR_HALF_W } from './art/church';
 import { drawBride, drawGroom, GROOM_SKIN, NOZZLES, type GroomPose } from './art/characters';
 import { circle, clamp, drawHeart, drawText, lerp, poly, rrect } from './art/core';
 import * as P from './art/props';
@@ -71,7 +72,17 @@ export interface GameStats {
   unlocked: string[];
 }
 
-export type GameState = 'ready' | 'playing' | 'caught' | 'over';
+/**
+ * title: pantalla de inicio (la puerta de la iglesia cerrada, temblando).
+ * breakout: el novio toma impulso y la puerta está a punto de reventar.
+ * playing / caught / over: la partida.
+ */
+export type GameState = 'title' | 'breakout' | 'playing' | 'caught' | 'over';
+
+/** El primer nivel es el jardín (afuera de la iglesia); después el salón y por último la catedral */
+const ZONE_ORDER = [1, 0, 2];
+/** Segundos de tensión antes de que reviente la puerta */
+const WINDUP = 0.42;
 
 interface Rect {
   x: number;
@@ -141,7 +152,7 @@ interface Pickup {
   taken: boolean;
 }
 interface Particle {
-  kind: 'foam' | 'spark' | 'confetti' | 'heart' | 'petal' | 'dust';
+  kind: 'foam' | 'spark' | 'confetti' | 'heart' | 'petal' | 'dust' | 'plank' | 'stone';
   x: number;
   y: number;
   vx: number;
@@ -198,7 +209,7 @@ export interface GameOptions {
 }
 
 export class Game {
-  state: GameState = 'ready';
+  state: GameState = 'title';
   t = 0;
 
   // jugador
@@ -241,6 +252,17 @@ export class Game {
   /** Ids de logros desbloqueados en esta partida */
   unlockedNow: string[] = [];
   toasts: { id: string; t: number }[] = [];
+  // salida por la puerta de la iglesia
+  doorShake = 0;
+  doorBulge = 0;
+  blown = false;
+  blastT = 0;
+  /** El novio sale de la puerta: empieza detrás (negativo) y llega a su sitio */
+  introX = 0;
+  private breakoutT = 0;
+  private hintT = 0;
+  private knockT = 0;
+  private nextKnock = 1.6;
   zoneFrom = 0;
   zoneTo = 0;
   zoneT = 1;
@@ -362,7 +384,7 @@ export class Game {
 
   /** Suma esta partida a los totales y récords (una sola vez) */
   private commitRun() {
-    if (this.committed || this.state === 'ready') return;
+    if (this.committed || this.preRun) return;
     this.committed = true;
     const run = this.run;
     updateSave((d) => {
@@ -425,6 +447,158 @@ export class Game {
     const b = this.hitRect;
     return Math.hypot(x - clamp(x, b.x, b.x + b.w), y - clamp(y, b.y, b.y + b.h)) < r;
   }
+  /** Antes de empezar a correr (pantalla de inicio o tomando impulso) */
+  get preRun() {
+    return this.state === 'title' || this.state === 'breakout';
+  }
+  /** Empieza la salida: el novio toma impulso y revienta la puerta */
+  start() {
+    if (this.state !== 'title') return;
+    this.state = 'breakout';
+    this.breakoutT = 0;
+    this.knockT = 0;
+    sound.playHit();
+  }
+
+  private blast() {
+    this.state = 'playing';
+    this.blown = true;
+    this.blastT = 0;
+    this.doorBulge = 0;
+    this.doorShake = 0;
+    this.speed = 520; // el empujón de la explosión, luego se asienta
+    this.introX = -90;
+    this.vy = -330;
+    this.grounded = false;
+    this.invuln = 0.6;
+    this.shake = 0.7;
+    this.flash = 0.8;
+    sound.playExplosion();
+    const dx = GROOM_X;
+    for (let i = 0; i < 20; i++) {
+      this.emit({
+        kind: 'plank',
+        x: dx + this.r(-60, 60),
+        y: this.r(FLOOR_Y - 250, FLOOR_Y - 30),
+        vx: this.r(120, 720),
+        vy: this.r(-560, 80),
+        life: 1.8,
+        max: 1.8,
+        size: this.r(5, 9),
+        color: this.pick(['#6d3d27', '#8a5236', '#4a2616', '#a3683f']),
+        rot: this.r(0, 6.28),
+        vr: this.r(-14, 14),
+        g: 1100,
+      });
+    }
+    for (let i = 0; i < 16; i++) {
+      this.emit({
+        kind: 'stone',
+        x: dx + this.r(-90, 90),
+        y: this.r(FLOOR_Y - 260, FLOOR_Y - 60),
+        vx: this.r(-260, 520),
+        vy: this.r(-480, 40),
+        life: 1.7,
+        max: 1.7,
+        size: this.r(5, 11),
+        color: this.pick(['#dcc6a8', '#b99d79', '#ecdcc4', '#9c8362']),
+        rot: this.r(0, 6.28),
+        vr: this.r(-10, 10),
+        g: 1200,
+      });
+    }
+    for (let i = 0; i < 18; i++) {
+      this.emit({
+        kind: 'dust',
+        x: dx + this.r(-70, 70),
+        y: this.r(FLOOR_Y - 220, FLOOR_Y - 10),
+        vx: this.r(-160, 380),
+        vy: this.r(-150, 40),
+        life: 1.3,
+        max: 1.3,
+        size: this.r(8, 14),
+        color: this.pick(['#efe0cf', '#d9c3a6', '#ffffff']),
+        rot: 0,
+        vr: 0,
+        g: -20,
+      });
+    }
+    this.burst('spark', dx, FLOOR_Y - 120, 14, ['#fff3b8', '#ffffff', '#ffb347'], 460, 0.6, 0);
+    this.burst('petal', dx, FLOOR_Y - 150, 14, ['#ffffff', COLORS.blush, COLORS.rose], 360, 1.4, 160);
+    this.hintT = 1.1; // las instrucciones salen un momento después, para que se vea la explosión
+  }
+
+  /** Pantalla de inicio y toma de impulso (todavía no se juega) */
+  private updateIntro(dt: number, thrust: boolean) {
+    if (this.state === 'title') {
+      if (thrust) this.start(); // atajo para pruebas; la app usa start()
+      this.nextKnock -= dt;
+      if (this.nextKnock <= 0) {
+        this.nextKnock = this.r(2.6, 4.2);
+        this.knockT = 0.4;
+        for (let i = 0; i < 4; i++) {
+          this.emit({
+            kind: 'dust',
+            x: GROOM_X + this.r(-DOOR_HALF_W, DOOR_HALF_W),
+            y: FLOOR_Y - 250 + this.r(0, 40),
+            vx: this.r(-20, 20),
+            vy: this.r(10, 60),
+            life: 0.9,
+            max: 0.9,
+            size: this.r(3, 6),
+            color: '#efe0cf',
+            rot: 0,
+            vr: 0,
+            g: 40,
+          });
+        }
+      }
+      this.knockT = Math.max(0, this.knockT - dt);
+      this.doorShake = Math.sin(this.t * 70) * 3 * (this.knockT / 0.4);
+      // pétalos flotando
+      if (this.rnd() < dt * 2.2) {
+        this.emit({
+          kind: 'petal',
+          x: W + 10,
+          y: this.r(60, 380),
+          vx: -this.r(50, 130),
+          vy: this.r(8, 40),
+          life: 11,
+          max: 11,
+          size: this.r(3, 5.5),
+          color: this.pick(['#ffffff', COLORS.blush, '#ffd1e0']),
+          rot: this.r(0, 6.28),
+          vr: this.r(-3, 3),
+          g: 0,
+        });
+      }
+    } else {
+      this.breakoutT += dt;
+      const k = clamp(this.breakoutT / WINDUP, 0, 1);
+      this.doorBulge = k;
+      this.doorShake = Math.sin(this.t * 90) * (2 + k * 6);
+      this.shake = Math.max(this.shake, 0.05 + k * 0.1);
+      if (this.rnd() < dt * 40) {
+        this.emit({
+          kind: 'dust',
+          x: GROOM_X + this.r(-DOOR_HALF_W - 10, DOOR_HALF_W + 10),
+          y: this.r(FLOOR_Y - 260, FLOOR_Y - 10),
+          vx: this.r(-40, 40),
+          vy: this.r(-10, 50),
+          life: 0.7,
+          max: 0.7,
+          size: this.r(3, 6),
+          color: '#efe0cf',
+          rot: 0,
+          vr: 0,
+          g: 120,
+        });
+      }
+      if (this.breakoutT >= WINDUP) this.blast();
+    }
+    this.updateParticles(dt);
+  }
+
   private get brideX() {
     return GROOM_X - this.gap - 36;
   }
@@ -841,16 +1015,10 @@ export class Game {
       if (this.toasts[0].t <= 0) this.toasts.shift();
     }
 
-    if (this.state === 'ready') {
+    if (this.preRun) {
       this.thrusting = false;
-      this.brideY += (this.cy - 10 - this.brideY) * Math.min(1, dt * 3);
-      if (thrust) {
-        this.state = 'playing';
-        this.speed = BASE_SPEED;
-      } else {
-        this.updateParticles(dt);
-        return;
-      }
+      this.updateIntro(dt, thrust);
+      return;
     }
 
     if (this.state === 'over') {
@@ -871,6 +1039,21 @@ export class Game {
       this.thrustSound = this.thrusting;
       if (this.thrusting) sound.startThrust();
       else sound.stopThrust();
+    }
+
+    // el novio sale de la puerta
+    this.introX += (0 - this.introX) * Math.min(1, dt * 7);
+    this.blastT += dt;
+    if (this.hintT > 0) {
+      this.hintT -= dt;
+      if (this.hintT <= 0) {
+        this.banner = {
+          title: '¡HUYE DE LA NOVIA!',
+          sub: 'MANTÉN PRESIONADO PARA VOLAR · SUELTA PARA CAER',
+          t: 4.2,
+          dur: 4.2,
+        };
+      }
     }
 
     // velocidad
@@ -1024,7 +1207,7 @@ export class Game {
       this.zoneFrom = this.zoneTo;
       this.zoneTo = zone;
       this.zoneT = 0;
-      this.banner = { title: ZONES[zone].name.toUpperCase(), sub: '¡Sigue corriendo!', t: 3 };
+      this.banner = { title: ZONES[ZONE_ORDER[zone]].name.toUpperCase(), sub: '¡Sigue corriendo!', t: 3 };
       sound.playZone();
     }
     if (this.zoneT < 1) this.zoneT = Math.min(1, this.zoneT + dt / 2.2);
@@ -1378,16 +1561,26 @@ export class Game {
     // fondo
     const sc = this.dist;
     if (this.zoneT < 1) {
-      drawZone(ctx, this.zoneFrom, sc, 1);
+      drawZone(ctx, ZONE_ORDER[this.zoneFrom], sc, 1);
       const e = this.zoneT * this.zoneT * (3 - 2 * this.zoneT);
-      drawZone(ctx, this.zoneTo, sc, e);
+      drawZone(ctx, ZONE_ORDER[this.zoneTo], sc, e);
     } else {
-      drawZone(ctx, this.zoneTo, sc, 1);
+      drawZone(ctx, ZONE_ORDER[this.zoneTo], sc, 1);
     }
+    // fachada de la iglesia (se aleja con el scroll al empezar)
+    const doorX = GROOM_X - this.dist;
+    drawChurchCarpet(ctx, doorX);
+    drawChurch(ctx, doorX, {
+      shake: this.doorShake,
+      bulge: this.doorBulge,
+      blown: this.blown,
+      blastT: this.blastT,
+      t: this.t,
+    });
     drawBackdropVeil(ctx);
 
     // sombra del novio
-    drawFloorShadow(ctx, GROOM_X, FLOOR_Y - 36 - this.cy + 36, 22);
+    if (!this.preRun) drawFloorShadow(ctx, GROOM_X + this.introX, FLOOR_Y - 36 - this.cy + 36, 22);
 
     // anillos y power-ups
     for (const r of this.rings) {
@@ -1405,11 +1598,11 @@ export class Game {
     // novia
     const closeness = 1 - clamp(this.gap / MAX_GAP, 0, 1);
     const grabbing = this.state === 'caught' || this.gap < 55;
-    drawBride(ctx, this.brideX, this.brideY, this.t, closeness, grabbing);
+    if (!this.preRun) drawBride(ctx, this.brideX, this.brideY, this.t, closeness, grabbing);
 
-    // novio (con o sin vehículo)
+    // novio (con o sin vehículo); durante el inicio sigue escondido detrás de la puerta
     const fear = clamp(0.2 + closeness * 1.1, 0, 1);
-    this.drawPlayer(ctx, fear);
+    if (!this.preRun) this.drawPlayer(ctx, fear);
 
     // partículas
     this.drawParticles(ctx);
@@ -1423,7 +1616,7 @@ export class Game {
     // efectos de pantalla completa
     if (this.turbo > 0) this.drawSpeedLines(ctx);
     drawVignette(ctx);
-    if (closeness > 0.65 && this.state !== 'ready') {
+    if (closeness > 0.65 && !this.preRun) {
       const pulse = 0.5 + 0.5 * Math.sin(this.t * 9);
       ctx.fillStyle = `rgba(255,30,70,${(closeness - 0.65) * 0.55 * (0.5 + pulse * 0.5)})`;
       ctx.fillRect(0, 0, W, H);
@@ -1434,27 +1627,29 @@ export class Game {
     }
 
     this.drawPopups(ctx);
-    this.drawHud(ctx);
-    this.drawBanner(ctx);
-    this.drawToasts(ctx);
+    if (!this.preRun) {
+      this.drawHud(ctx);
+      this.drawBanner(ctx);
+      this.drawToasts(ctx);
+    }
     this.drawOverlays(ctx);
   }
 
   private drawPlayer(ctx: CanvasRenderingContext2D, fear: number) {
     const v = this.vehicle;
     const pose: GroomPose = {
-      t: this.state === 'ready' ? 0.3 : this.t,
+      t: this.t,
       thrusting: this.thrusting,
       grounded: this.grounded,
       vy: this.vy,
       fear,
-      stunned: !v && this.invuln > 0 && this.turbo <= 0 && this.state !== 'ready',
+      stunned: !v && this.invuln > 0 && this.turbo <= 0 && this.introX > -1 && this.blastT > 0.7,
       shield: this.shield,
       turbo: this.turbo > 0,
       caught: this.state === 'caught' || this.state === 'over',
     };
     if (!v) {
-      drawGroom(ctx, GROOM_X, this.cy, pose);
+      drawGroom(ctx, GROOM_X + this.introX, this.cy, pose);
       return;
     }
     const d = VEHICLES[v.kind];
@@ -1516,6 +1711,7 @@ export class Game {
       switch (p.kind) {
         case 'foam':
         case 'dust': {
+          if (p.size > 7) ctx.globalAlpha *= 0.5; // nubes grandes de la explosión: más suaves
           ctx.fillStyle = p.color;
           ctx.beginPath();
           ctx.arc(0, 0, p.size * (p.kind === 'foam' ? 0.6 + (1 - k) * 0.7 : 0.7 + (1 - k)), 0, Math.PI * 2);
@@ -1545,6 +1741,41 @@ export class Game {
         }
         case 'heart': {
           drawHeart(ctx, 0, 0, p.size, p.color, 2);
+          break;
+        }
+        case 'plank': {
+          // astilla de la puerta
+          ctx.rotate(p.rot);
+          ctx.fillStyle = p.color;
+          ctx.strokeStyle = COLORS.ink;
+          ctx.lineWidth = 2.2;
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          ctx.moveTo(-p.size * 1.9, -p.size * 0.5);
+          ctx.lineTo(p.size * 1.7, -p.size * 0.7);
+          ctx.lineTo(p.size * 2.1, p.size * 0.1);
+          ctx.lineTo(p.size * 1.4, p.size * 0.6);
+          ctx.lineTo(-p.size * 1.9, p.size * 0.5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          break;
+        }
+        case 'stone': {
+          ctx.rotate(p.rot);
+          ctx.fillStyle = p.color;
+          ctx.strokeStyle = COLORS.ink;
+          ctx.lineWidth = 2.2;
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          ctx.moveTo(-p.size, -p.size * 0.4);
+          ctx.lineTo(-p.size * 0.2, -p.size);
+          ctx.lineTo(p.size, -p.size * 0.5);
+          ctx.lineTo(p.size * 0.8, p.size * 0.7);
+          ctx.lineTo(-p.size * 0.5, p.size * 0.8);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
           break;
         }
       }
@@ -1672,19 +1903,6 @@ export class Game {
   }
 
   private drawOverlays(ctx: CanvasRenderingContext2D) {
-    if (this.state === 'ready') {
-      const pulse = 1 + Math.sin(this.t * 4) * 0.04;
-      ctx.save();
-      ctx.translate(W / 2, 200);
-      ctx.scale(pulse, pulse);
-      drawText(ctx, '¡HUYE DE LA NOVIA!', 0, 0, 46, COLORS.cream, { align: 'center', strokeW: 9 });
-      drawText(ctx, 'MANTÉN PRESIONADO (ESPACIO / CLIC / TOQUE) PARA VOLAR', 0, 40, 19, '#ffe9a0', {
-        align: 'center',
-        strokeW: 5,
-      });
-      drawText(ctx, 'SUELTA PARA CAER', 0, 66, 15, COLORS.cream, { align: 'center', strokeW: 4 });
-      ctx.restore();
-    }
     if (this.state === 'caught') {
       const k = clamp(this.caughtT * 3, 0, 1);
       ctx.fillStyle = `rgba(120,10,50,${0.3 * k})`;

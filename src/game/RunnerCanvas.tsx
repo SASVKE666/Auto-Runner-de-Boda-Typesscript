@@ -11,6 +11,8 @@ import { sound } from './sound';
 export type { GameStats };
 
 interface RunnerCanvasProps {
+  /** 'title': pantalla de inicio (la puerta cerrada). 'run': el novio revienta la puerta y se corre. */
+  mode: 'title' | 'run';
   isPaused: boolean;
   /** Mejor distancia (m) para mostrarla en el HUD */
   best: number;
@@ -19,10 +21,13 @@ interface RunnerCanvasProps {
 
 const THRUST_KEYS = new Set(['Space', 'ArrowUp', 'KeyW']);
 
-export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({ isPaused, best, onGameOver }) => {
+export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({ mode, isPaused, best, onGameOver }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pausedRef = useRef(isPaused);
   const gameOverRef = useRef(onGameOver);
+  const gameRef = useRef<Game | null>(null);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   pausedRef.current = isPaused;
   gameOverRef.current = onGameOver;
 
@@ -37,6 +42,8 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({ isPaused, best, onGa
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const game = new Game({ best });
+    gameRef.current = game;
+    if (modeRef.current === 'run') game.start(); // reintentar: directo a reventar la puerta
     let keyHeld = false;
     let pointerHeld = false;
     // Un toque más corto que un fotograma igual cuenta (vehículos que reaccionan al toque)
@@ -84,13 +91,15 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({ isPaused, best, onGa
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('contextmenu', onContextMenu);
 
-    sound.startMusic();
+    if (modeRef.current === 'run') sound.startMusic();
 
     const loop = (now: number) => {
       const dt = (now - last) / 1000;
       last = now;
       if (!pausedRef.current && !finished) {
-        game.update(dt, keyHeld || pointerHeld || tapLatch);
+        // en la pantalla de inicio los toques no cuentan (el menú arranca la partida)
+        const input = modeRef.current === 'run' && (keyHeld || pointerHeld || tapLatch);
+        game.update(dt, input);
         tapLatch = false;
       } else {
         game.silence();
@@ -114,12 +123,21 @@ export const RunnerCanvas: React.FC<RunnerCanvasProps> = ({ isPaused, best, onGa
       window.removeEventListener('pointercancel', onPointerUp);
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('contextmenu', onContextMenu);
+      gameRef.current = null;
       game.dispose(); // guarda lo recorrido si sales a mitad de partida
       sound.stopMusic();
     };
     // El juego se crea una sola vez por montaje (App cambia la `key` para reiniciar)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // del menú a la partida: se mantiene la misma escena y el novio revienta la puerta
+  useEffect(() => {
+    if (mode === 'run' && gameRef.current && gameRef.current.state === 'title') {
+      gameRef.current.start();
+      sound.startMusic();
+    }
+  }, [mode]);
 
   return (
     <canvas
