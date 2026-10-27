@@ -41,12 +41,12 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2cqw;
+  gap: 1.5cqw;
   text-align: center;
   z-index: 10;
 }
 .menu-logo {
-  font-size: 8.6cqw;
+  font-size: 8cqw;
   line-height: 0.95;
   letter-spacing: 0.02em;
   filter: drop-shadow(0 0.5cqw 0 #2a1420);

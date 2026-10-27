@@ -1,9 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { ACHIEVEMENTS, GROUPS, isDone, liveSnapshot, progressOf } from '../game/achievements';
-import { VEHICLE_KINDS, VEHICLES, type VehicleKind } from '../game/constants';
-import { drawVehicleIcon } from '../game/art/vehicles';
-import { setRenderScale } from '../game/art/core';
 import { resetSave } from '../game/save';
 import { newRunStats } from '../game/achievements';
 import type { SaveData } from '../game/save';
@@ -11,36 +8,9 @@ import type { SaveData } from '../game/save';
 interface Props {
   save: SaveData;
   onClose: () => void;
-  initialTab?: 'logros' | 'garaje';
 }
 
-const VehicleIcon: React.FC<{ kind: VehicleKind; locked: boolean }> = ({ kind, locked }) => {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    setRenderScale(dpr);
-    c.width = 120 * dpr;
-    c.height = 84 * dpr;
-    const ctx = c.getContext('2d')!;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    let raf = 0;
-    const draw = (now: number) => {
-      ctx.clearRect(0, 0, 120, 84);
-      if (locked) ctx.filter = 'brightness(0) opacity(0.35)';
-      drawVehicleIcon(ctx, kind, 60, 44, 96, now / 1000);
-      ctx.filter = 'none';
-      raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, [kind, locked]);
-  return <canvas ref={ref} style={{ width: 120, height: 84 }} aria-hidden />;
-};
-
-export const AchievementsModal: React.FC<Props> = ({ save, onClose, initialTab = 'logros' }) => {
-  const [tab, setTab] = useState(initialTab);
+export const AchievementsModal: React.FC<Props> = ({ save, onClose }) => {
   const [confirmReset, setConfirmReset] = useState(false);
   const snap = liveSnapshot(save, newRunStats(), true);
   const done = ACHIEVEMENTS.filter((a) => save.unlocked[a.id]).length;
@@ -66,21 +36,13 @@ export const AchievementsModal: React.FC<Props> = ({ save, onClose, initialTab =
             <X className="w-4 h-4 text-[#2a1420]" />
           </button>
           <h3 className="font-display text-2xl text-rose-600">🏆 SALÓN DE LA FAMA</h3>
-          <div className="mt-2 flex gap-2">
-            {(['logros', 'garaje'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`font-display text-sm px-4 py-1.5 rounded-full border-[3px] border-[#2a1420] ${tab === t ? 'bg-amber-300 text-[#2a1420]' : 'bg-white/70 text-[#7a1f3d]'}`}
-              >
-                {t === 'logros' ? `Logros ${done}/${ACHIEVEMENTS.length}` : 'Garaje'}
-              </button>
-            ))}
+          <div className="mt-1 font-display text-sm text-[#7a1f3d]">
+            {done}/{ACHIEVEMENTS.length} desbloqueados
           </div>
         </div>
 
         <div className="overflow-y-auto px-4 sm:px-5 pb-4 flex-1">
-          {tab === 'logros' && (
+          {(
             <>
               <div className="h-3 rounded-full bg-white/70 border-2 border-[#2a1420] overflow-hidden mb-3">
                 <div className="h-full bg-rose-500" style={{ width: `${(done / ACHIEVEMENTS.length) * 100}%` }} />
@@ -122,31 +84,6 @@ export const AchievementsModal: React.FC<Props> = ({ save, onClose, initialTab =
             </>
           )}
 
-          {tab === 'garaje' && (
-            <div className="space-y-3">
-              <p className="text-[#4a1230] text-xs sm:text-sm">
-                Cruza un <b>🎁 regalo de boda</b> durante la fuga para subirte a un vehículo al azar. Cada uno aguanta <b>un golpe</b>: si te dan, se destruye y sigues con tu jetpack.
-              </p>
-              {VEHICLE_KINDS.map((k) => {
-                const d = VEHICLES[k];
-                const used = save.totals.kinds[k];
-                const known = used > 0;
-                return (
-                  <div key={k} className="flex gap-3 items-center rounded-2xl border-[3px] border-[#2a1420] bg-white/70 p-2.5">
-                    <div className="shrink-0 rounded-xl bg-[#2a0b1d]/85 border-2 border-[#2a1420]">
-                      <VehicleIcon kind={k} locked={!known} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-display text-[#2a1420] leading-tight">{known ? d.name : '???'}</div>
-                      <div className="text-[#4a1230] text-xs leading-snug">{known ? d.blurb : 'Aún no lo has encontrado. ¡Busca los regalos!'}</div>
-                      {known && <div className="mt-1 text-xs font-semibold text-rose-700">🎮 {d.how}</div>}
-                      <div className="text-[10px] text-[#4a1230]/70 mt-0.5">Usado {used} {used === 1 ? 'vez' : 'veces'}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         <div className="px-4 sm:px-5 py-3 border-t-2 border-[#2a1420]/20 flex items-center justify-between gap-2 text-xs text-[#4a1230]/80">

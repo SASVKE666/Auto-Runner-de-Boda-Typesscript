@@ -1,10 +1,13 @@
 import React from 'react';
-import { HelpCircle, Play, Trophy } from 'lucide-react';
+import { HelpCircle, Play, ShoppingBag, Trophy } from 'lucide-react';
 
 interface MainMenuProps {
   onPlay: () => void;
   onHowToPlay: () => void;
   onAchievements: () => void;
+  onShop: () => void;
+  /** Anillos guardados en la cartera */
+  wallet: number;
   best: number;
   achDone: number;
   achTotal: number;
@@ -14,7 +17,7 @@ interface MainMenuProps {
  * Menú de inicio: va encima de la escena del juego (la puerta de la iglesia), como en Jetpack Joyride.
  * Todo el tamaño se calcula con unidades del contenedor (cqw) para que escale con el escenario 16:9.
  */
-export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onHowToPlay, onAchievements, best, achDone, achTotal }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onHowToPlay, onAchievements, onShop, wallet, best, achDone, achTotal }) => {
   return (
     <div className="menu-panel">
       <h1 className="menu-logo font-display text-amber-300 [-webkit-text-stroke:0.5cqw_#2a1420] [paint-order:stroke_fill]">
@@ -28,13 +31,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onPlay, onHowToPlay, onAchie
           <Play className="menu-icon fill-current" /> ¡CORRER!
         </button>
         <div className="flex gap-[1.2cqw] w-full">
+          <button onClick={onShop} className="btn-secondary menu-small flex-1 flex items-center justify-center gap-[0.8cqw]">
+            <ShoppingBag className="menu-icon" /> Tienda <span className="text-amber-200">💍{wallet.toLocaleString()}</span>
+          </button>
           <button onClick={onAchievements} className="btn-secondary menu-small flex-1 flex items-center justify-center gap-[0.8cqw]">
             <Trophy className="menu-icon" /> Logros <span className="text-amber-200">{achDone}/{achTotal}</span>
           </button>
-          <button onClick={onHowToPlay} className="btn-secondary menu-small flex-1 flex items-center justify-center gap-[0.8cqw]">
-            <HelpCircle className="menu-icon" /> Cómo jugar
-          </button>
         </div>
+        <button onClick={onHowToPlay} className="btn-secondary menu-small flex items-center justify-center gap-[0.8cqw]">
+          <HelpCircle className="menu-icon" /> Cómo jugar
+        </button>
       </div>
       <p className="menu-hint">
         Pulsa <kbd>Enter</kbd> o <kbd>Espacio</kbd> para empezar

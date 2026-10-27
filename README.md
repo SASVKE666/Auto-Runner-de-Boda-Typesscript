@@ -11,11 +11,12 @@ Runner de scroll lateral estilo *Jetpack Joyride*. Es el día de tu boda, te arr
 
 ## Regalos, vehículos y logros
 
-- **Regalos de boda 🎁**: aparecen cada cierto tiempo (el primero cerca de los 400 m y luego uno cada ~900 m en promedio). Al cruzarlos te subes a un vehículo al azar (se destruyen las trampas y misiles en pantalla y no llega ninguno hasta que acaba el título con los controles) que aguanta **un golpe** (si te dan, se destruye y sigues con el jetpack, sin castigo de la novia).
+- **Tienda 🛍️** (menú → Tienda): los anillos que recoges se guardan en una **cartera** al terminar cada partida (también si sales a medias) y se gastan ahí. Puedes **vestir al novio** (sombrero, traje, corbata, rostro y color del jetpack, con vista previa antes de comprar) y **comprar los vehículos**: Cisne 400 💍, Limusina 900 💍, Carroza de Cupido 1500 💍. Los precios están en `src/game/shopData.ts`.
+- **Regalos de boda 🎁**: solo salen si ya compraste algún vehículo (el primero cerca de los 400 m y luego uno cada ~900 m en promedio). Al cruzarlos te subes a uno de los vehículos que compraste (se destruyen las trampas y misiles en pantalla y no llega ninguno hasta que acaba el título con los controles); aguanta **un golpe** (si te dan, se destruye y sigues con el jetpack, sin castigo de la novia).
   - **Cisne Inflable**: cada toque da un aletazo; mantén para seguir aleteando.
   - **Limusina Recién Casados**: rueda por el piso; mantén para saltar más alto. Aplasta las torres de copas.
   - **Carroza de Cupido**: cada toque invierte la gravedad (piso ⇄ techo).
-- **Logros** (menú → Logros): 29 retos en 6 grupos, con barra de progreso, y un **Garaje** con los vehículos descubiertos.
+- **Logros** (menú → Logros): 33 retos en 7 grupos, con barra de progreso.
 - El progreso se guarda en `localStorage` (clave `novio_en_fuga_save_v1`) y se puede borrar desde el modal de Logros.
 
 ## Inicio estilo Jetpack Joyride

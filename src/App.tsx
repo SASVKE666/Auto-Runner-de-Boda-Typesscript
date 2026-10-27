@@ -7,6 +7,7 @@ import { GameOverModal } from './components/GameOverModal';
 import { HowToPlayModal } from './components/HowToPlayModal';
 import { IntroSequence } from './components/IntroSequence';
 import { AchievementsModal } from './components/AchievementsModal';
+import { ShopModal } from './components/ShopModal';
 import { ACHIEVEMENTS } from './game/achievements';
 import { getSave, subscribeSave } from './game/save';
 
@@ -20,6 +21,7 @@ export default function App() {
   const [paused, setPaused] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAch, setShowAch] = useState(false);
+  const [showShop, setShowShop] = useState(false);
   const save = useSyncExternalStore(subscribeSave, getSave, getSave);
   const best = save.best;
   const bestAtStart = useRef(best);
@@ -74,7 +76,7 @@ export default function App() {
         if (e.code === 'Escape') setShowHelp(false);
         return;
       }
-      if (showAch) return; // el modal de logros maneja sus propias teclas
+      if (showAch || showShop) return; // los modales manejan sus propias teclas
       if (phase === 'playing' && (e.code === 'KeyP' || e.code === 'Escape')) {
         setPaused((p) => !p);
       } else if (phase === 'menu' && (e.code === 'Enter' || e.code === 'Space')) {
@@ -86,7 +88,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, showHelp, showAch, play]);
+  }, [phase, showHelp, showAch, showShop, play]);
 
   // Pausa automática al cambiar de pestaña
   useEffect(() => {
@@ -120,6 +122,8 @@ export default function App() {
                 onPlay={play}
                 onHowToPlay={() => setShowHelp(true)}
                 onAchievements={() => setShowAch(true)}
+                onShop={() => setShowShop(true)}
+                wallet={save.wallet}
                 best={best}
                 achDone={ACHIEVEMENTS.filter((a) => save.unlocked[a.id]).length}
                 achTotal={ACHIEVEMENTS.length}
@@ -161,7 +165,7 @@ export default function App() {
           </div>
 
           {phase === 'gameover' && lastStats && (
-            <GameOverModal stats={lastStats} best={best} newRecord={newRecord} onRetry={play} onMenu={goMenu} />
+            <GameOverModal stats={lastStats} best={best} wallet={save.wallet} newRecord={newRecord} onRetry={play} onMenu={goMenu} onShop={() => setShowShop(true)} />
           )}
         </div>
       )}
@@ -169,6 +173,7 @@ export default function App() {
       {phase === 'intro' && <IntroSequence onComplete={goMenu} />}
 
       {showAch && <AchievementsModal save={save} onClose={() => setShowAch(false)} />}
+      {showShop && <ShopModal save={save} onClose={() => setShowShop(false)} />}
       {showHelp && <HowToPlayModal onClose={() => setShowHelp(false)} />}
     </div>
   );

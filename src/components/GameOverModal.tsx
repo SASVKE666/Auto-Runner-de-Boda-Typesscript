@@ -5,9 +5,12 @@ import { ACHIEVEMENT_BY_ID } from '../game/achievements';
 interface GameOverModalProps {
   stats: GameStats;
   best: number;
+  /** Anillos guardados en la cartera (ya incluyen los de esta partida) */
+  wallet: number;
   newRecord: boolean;
   onRetry: () => void;
   onMenu: () => void;
+  onShop: () => void;
 }
 
 function verdict(m: number): string {
@@ -19,7 +22,7 @@ function verdict(m: number): string {
   return '¡Leyenda! Pero igual hubo boda... y muy bonita.';
 }
 
-export const GameOverModal: React.FC<GameOverModalProps> = ({ stats, best, newRecord, onRetry, onMenu }) => {
+export const GameOverModal: React.FC<GameOverModalProps> = ({ stats, best, wallet, newRecord, onRetry, onMenu, onShop }) => {
   const text = useMemo(() => verdict(stats.distance), [stats.distance]);
   return (
     <div className="absolute inset-0 z-40 bg-[#2a0b1d]/75 backdrop-blur-sm flex items-center justify-center p-4">
@@ -47,6 +50,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ stats, best, newRe
             <div className="text-[10px] font-bold uppercase text-rose-700">Mejor</div>
             <div className="font-display text-xl">{best} m</div>
           </div>
+        </div>
+        <div className="mt-2 text-sm font-semibold text-[#4a1230]" data-testid="gameover-wallet">
+          💍 +{stats.coins} guardados · Cartera: <b>{wallet.toLocaleString()}</b>
+          <button onClick={onShop} className="ml-2 underline text-rose-700">Ir a la tienda</button>
         </div>
         <div className="mt-3 font-display text-[#2a1420]">
           PUNTOS: <span className="text-rose-600 text-2xl">{stats.score.toLocaleString()}</span>
