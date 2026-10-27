@@ -11,7 +11,7 @@ Runner de scroll lateral estilo *Jetpack Joyride*. Es el día de tu boda, te arr
 
 ## Regalos, vehículos y logros
 
-- **Regalos de boda 🎁**: aparecen cada cierto tiempo (el primero cerca de los 90 m). Al cruzarlos te subes a un vehículo al azar que aguanta **un golpe** (si te dan, se destruye y sigues con el jetpack, sin castigo de la novia).
+- **Regalos de boda 🎁**: aparecen cada cierto tiempo (el primero cerca de los 400 m y luego uno cada ~900 m en promedio). Al cruzarlos te subes a un vehículo al azar que aguanta **un golpe** (si te dan, se destruye y sigues con el jetpack, sin castigo de la novia).
   - **Cisne Inflable**: cada toque da un aletazo; mantén para seguir aleteando.
   - **Limusina Recién Casados**: rueda por el piso; mantén para saltar más alto. Aplasta las torres de copas.
   - **Carroza de Cupido**: cada toque invierte la gravedad (piso ⇄ techo).
