@@ -173,8 +173,10 @@ const VY_DOWN = 640;
 const BASE_SPEED = 330;
 /** Cada cuántos metros el marcador de distancia salta y cambia de color */
 const MILESTONE_EVERY = 250;
-/** Segundos que se muestra el título del vehículo (antes 3.8; ahora el 75 %) y que dura la calma sin peligros */
-const VEHICLE_TITLE_T = 2.85;
+/** Segundos que se muestra el título del vehículo (antes 3.8) y que dura la calma sin peligros */
+const VEHICLE_TITLE_T = 2.3;
+/** Segundos que se muestra "¡HUYE DE LA NOVIA!" al empezar (antes 4.2; ahora el 75 %) */
+const START_TITLE_T = 3.15;
 /** Segundos que se muestra cada aviso de logro */
 const TOAST_T = 3.2;
 /** Colores del marcador de distancia: uno nuevo en cada meta (el primero es el normal) */
@@ -1040,8 +1042,8 @@ export class Game {
         this.banner = {
           title: '¡HUYE DE LA NOVIA!',
           sub: 'MANTÉN PRESIONADO PARA VOLAR · SUELTA PARA CAER',
-          t: 4.2,
-          dur: 4.2,
+          t: START_TITLE_T,
+          dur: START_TITLE_T,
         };
       }
     }
