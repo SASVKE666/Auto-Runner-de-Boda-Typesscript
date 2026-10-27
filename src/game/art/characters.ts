@@ -5,6 +5,7 @@
  */
 import { COLORS } from '../constants';
 import { circle, clamp, drawHeart, ellipse, ink, poly, rrect } from './core';
+import { DEFAULT_OUTFIT, PACK_COLORS, SUIT_COLORS, type Outfit } from '../shopData';
 
 /** Colores del novio: coinciden con el personaje del video de intro (piel amarilla, ojos morados) */
 export const GROOM_SKIN = '#f4cf45';
@@ -24,6 +25,8 @@ export interface GroomPose {
   caught?: boolean;
   /** Va sentado en un vehículo: sin jetpack, brazos al frente (el vehículo tapa las piernas) */
   rider?: boolean;
+  /** Atuendo comprado en la tienda (por defecto, el de serie) */
+  outfit?: Outfit;
 }
 
 /** Punto (relativo al centro del novio) por donde sale la espuma de champaña */
@@ -32,15 +35,15 @@ export const NOZZLES = [
   { x: -17, y: 23 },
 ];
 
-function bottle(ctx: CanvasRenderingContext2D, cx: number, cy: number, rot: number) {
+function bottle(ctx: CanvasRenderingContext2D, cx: number, cy: number, rot: number, body: string = COLORS.bottle, foil: string = COLORS.gold) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rot);
-  rrect(ctx, -3.5, 6, 7, 11, 2, COLORS.bottle, 2.5); // cuello
-  rrect(ctx, -4.8, 14, 9.6, 7, 2, COLORS.gold, 2.5); // papel dorado (boquilla)
-  rrect(ctx, -7, -20, 14, 29, 6, COLORS.bottle, 2.5); // cuerpo
+  rrect(ctx, -3.5, 6, 7, 11, 2, body, 2.5); // cuello
+  rrect(ctx, -4.8, 14, 9.6, 7, 2, foil, 2.5); // papel dorado (boquilla)
+  rrect(ctx, -7, -20, 14, 29, 6, body, 2.5); // cuerpo
   rrect(ctx, -7, -9, 14, 11, 1, COLORS.cream, 2); // etiqueta
-  circle(ctx, 0, -3.5, 2.2, COLORS.gold, 1.2);
+  circle(ctx, 0, -3.5, 2.2, foil, 1.2);
   ctx.strokeStyle = 'rgba(255,255,255,.55)';
   ctx.lineWidth = 2;
   ctx.lineCap = 'round';
@@ -79,7 +82,95 @@ function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, fi
   poly(ctx, pts, fill, 1.8);
 }
 
+/** Sombreros: la cabeza es un círculo de radio 15 centrado en (6, -33) */
+function drawHat(ctx: CanvasRenderingContext2D, hat: string) {
+  switch (hat) {
+    case 'tophat': {
+      rrect(ctx, -6, -83, 24, 34, 3, '#27202e', 3);
+      rrect(ctx, -6, -61, 24, 7, 1, COLORS.rose, 2);
+      ellipse(ctx, 6, -49, 21, 5, '#27202e', 3);
+      break;
+    }
+    case 'cap': {
+      ctx.beginPath();
+      ctx.arc(6, -45, 16, Math.PI, 0);
+      ctx.closePath();
+      ink(ctx, '#3b6fd0', 3);
+      poly(ctx, [20, -46, 36, -43, 36, -39, 18, -41], '#2b55a3', 2.6);
+      circle(ctx, 6, -61, 2.6, COLORS.white, 1.8);
+      break;
+    }
+    case 'flowers': {
+      for (let i = 0; i < 7; i++) {
+        const a = Math.PI * (1.12 + i * 0.13);
+        const fx = 6 + Math.cos(a) * 16.5;
+        const fy = -35 + Math.sin(a) * 18;
+        circle(ctx, fx - 2.5, fy + 2, 3.2, COLORS.green, 1.4);
+        circle(ctx, fx, fy, 4.2, i % 2 ? COLORS.blush : COLORS.white, 2);
+        circle(ctx, fx, fy, 1.3, COLORS.gold, 0);
+      }
+      break;
+    }
+    case 'charro': {
+      ellipse(ctx, 6, -48, 30, 6, '#c9a15b', 3);
+      poly(ctx, [-6, -48, -2, -72, 14, -72, 18, -48], '#d8b26a', 3);
+      rrect(ctx, -6.5, -57, 25, 6, 1, COLORS.rose, 2);
+      for (let i = 0; i < 4; i++) circle(ctx, -1 + i * 6.5, -54, 1.4, COLORS.gold, 0);
+      break;
+    }
+    case 'crown': {
+      poly(ctx, [-6, -48, -8, -68, 0, -58, 6, -72, 12, -58, 20, -68, 18, -48], COLORS.gold, 3);
+      circle(ctx, 6, -56, 2.8, COLORS.rose, 1.8);
+      circle(ctx, -1, -53, 1.8, '#7fd0ff', 1.4);
+      circle(ctx, 13, -53, 1.8, '#7fd0ff', 1.4);
+      break;
+    }
+  }
+}
+
+/** Accesorios de la cara (el ojo está en (13, -34), la nariz en (21, -30)) */
+function drawFace(ctx: CanvasRenderingContext2D, face: string) {
+  switch (face) {
+    case 'shades': {
+      ctx.beginPath();
+      ctx.moveTo(4, -36);
+      ctx.lineTo(-8, -33);
+      ink(ctx, null, 2.6);
+      rrect(ctx, 5, -41, 19, 12, 5, '#1b1320', 2.4);
+      ctx.fillStyle = 'rgba(255,255,255,.45)';
+      ctx.beginPath();
+      ctx.moveTo(8, -38);
+      ctx.lineTo(13, -38);
+      ctx.lineTo(10, -33);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'mustache': {
+      poly(ctx, [29, -30.5, 22, -27, 13, -27.5, 9.5, -23, 14, -20.5, 21.5, -23, 30, -25.5], '#4a2616', 2.4);
+      break;
+    }
+    case 'monocle': {
+      circle(ctx, 13, -34, 8.5, null, 2.6);
+      ctx.strokeStyle = COLORS.gold;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(13, -34, 8.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(13, -25.5);
+      ctx.quadraticCurveTo(10, -14, 16, -6);
+      ink(ctx, null, 1.8, COLORS.gold);
+      break;
+    }
+  }
+}
+
 export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p: GroomPose) {
+  const outfit = p.outfit ?? DEFAULT_OUTFIT;
+  const suit = SUIT_COLORS[outfit.suit] ?? SUIT_COLORS.classic;
+  const pack = PACK_COLORS[outfit.pack] ?? PACK_COLORS.green;
+  const TUX = suit.main;
   const { t, grounded, thrusting, fear } = p;
   const run = grounded ? Math.sin(t * 17) : 0;
   const lean = p.rider
@@ -109,8 +200,8 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
 
   // --- Jetpack: dos botellas de champaña (no se ve cuando va en un vehículo) ---
   if (!p.rider) {
-    bottle(ctx, -25, 2, -0.1);
-    bottle(ctx, -17, 4, 0.06);
+    bottle(ctx, -25, 2, -0.1, pack.body, pack.foil);
+    bottle(ctx, -17, 4, 0.06, pack.body, pack.foil);
     // correa
     ctx.save();
     ctx.fillStyle = COLORS.burgundy;
@@ -141,7 +232,7 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
     backArm = -1.1;
     frontArm = -1.3 + Math.sin(t * 9) * 0.04;
   }
-  limb(ctx, -3, -12, backArm, 18, 8, COLORS.tux, COLORS.cream);
+  limb(ctx, -3, -12, backArm, 18, 8, TUX, COLORS.cream);
 
   // --- Piernas ---
   let legA: number;
@@ -167,15 +258,15 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
     ctx.save();
     ctx.translate(-2, 14);
     ctx.rotate(a);
-    rrect(ctx, -4.8, -2, 9.6, 22, 4.5, COLORS.tux, 2.5);
+    rrect(ctx, -4.8, -2, 9.6, 22, 4.5, TUX, 2.5);
     ellipse(ctx, 3.5, 23, 8.5, 4.6, '#1b1320', 2.5);
     ellipse(ctx, 1, 21, 5, 2.6, COLORS.cream, 0);
     ctx.restore();
   }
 
   // --- Torso: frac negro ---
-  poly(ctx, [-14, 2, -29, 22, -9, 18], COLORS.tux, 2.5); // faldones
-  rrect(ctx, -14, -19, 28, 36, 9, COLORS.tux, 3);
+  poly(ctx, [-14, 2, -29, 22, -9, 18], TUX, 2.5); // faldones
+  rrect(ctx, -14, -19, 28, 36, 9, TUX, 3);
   rrect(ctx, 2.5, -17.5, 10.5, 24, 4, COLORS.white, 2); // camisa
   ctx.beginPath();
   ctx.moveTo(2.5, -17);
@@ -183,7 +274,7 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
   ink(ctx, null, 2.2);
   circle(ctx, 9.5, -8, 1.3, COLORS.ink, 0);
   circle(ctx, 9.5, -2, 1.3, COLORS.ink, 0);
-  rrect(ctx, -14, 6, 28, 7, 2, COLORS.rose, 2.5); // faja
+  rrect(ctx, -14, 6, 28, 7, 2, suit.sash, 2.5); // faja
   // flor en la solapa
   circle(ctx, -1, -8, 4, COLORS.white, 2);
   circle(ctx, -1, -8, 1.6, '#e7d9c4', 0);
@@ -241,13 +332,23 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
     ink(ctx, '#7fd0ff', 1.8);
   }
 
-  // moño (sobre el cuello, por delante de la cabeza)
-  poly(ctx, [8, -15.5, -1, -20.5, -1, -10.5], COLORS.rose, 2.4);
-  poly(ctx, [8, -15.5, 17, -20.5, 17, -10.5], COLORS.rose, 2.4);
-  circle(ctx, 8, -15.5, 3.2, COLORS.roseDark, 2);
+  drawFace(ctx, outfit.face);
+  drawHat(ctx, outfit.hat);
+
+  // corbata o moño (sobre el cuello, por delante de la cabeza)
+  if (outfit.tie === 'tie') {
+    poly(ctx, [4, -17, 12, -17, 11, -13, 5, -13], '#c92c58', 2.2);
+    poly(ctx, [5, -13, 11, -13, 14, 3, 8, 8, 2, 3], '#e63e6d', 2.4);
+  } else {
+    const bowCol = outfit.tie === 'bowblue' ? '#3b6fd0' : outfit.tie === 'bowgold' ? COLORS.gold : COLORS.rose;
+    const knot = outfit.tie === 'bowblue' ? '#2b55a3' : outfit.tie === 'bowgold' ? COLORS.goldDark : COLORS.roseDark;
+    poly(ctx, [8, -15.5, -1, -20.5, -1, -10.5], bowCol, 2.4);
+    poly(ctx, [8, -15.5, 17, -20.5, 17, -10.5], bowCol, 2.4);
+    circle(ctx, 8, -15.5, 3.2, knot, 2);
+  }
 
   // --- Brazo delantero ---
-  limb(ctx, 6, -11, frontArm, 18, 8, COLORS.tux, COLORS.cream);
+  limb(ctx, 6, -11, frontArm, 18, 8, TUX, COLORS.cream);
 
   // Estrellas de aturdimiento
   if (p.stunned) {

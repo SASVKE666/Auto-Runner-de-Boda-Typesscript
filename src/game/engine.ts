@@ -53,6 +53,7 @@ import {
   type RunStats,
 } from './achievements';
 import { getSave, updateSave } from './save';
+import { ownedVehicles } from './shop';
 
 export interface GameStats {
   score: number;
@@ -384,6 +385,7 @@ export class Game {
     this.committed = true;
     const run = this.run;
     updateSave((d) => {
+      d.wallet += run.rings; // los anillos de la partida se guardan en la cartera para la tienda
       d.totals = addRunToTotals(d.totals, run);
       d.totals.games += 1;
       if (run.caught) d.totals.caught += 1;
@@ -884,6 +886,7 @@ export class Game {
     const script = ['ringsLine', 'tower', 'ringsWave', 'zapperH', 'chandelier'];
     const giftDue =
       !this.vehicle &&
+      ownedVehicles().length > 0 && // solo salen regalos si ya compraste algún vehículo en la tienda
       m >= FIRST_GIFT_M &&
       (this.giftsSpawned === 0 || (this.sinceGift >= GIFT_MIN_PATTERNS && this.rnd() < 0.3));
     if (this.patternIndex < script.length) {
@@ -1432,7 +1435,7 @@ export class Game {
 
   private openGift(g: Gift) {
     g.taken = true;
-    const kind = pickVehicle(this.rnd, this.lastKind);
+    const kind = pickVehicle(this.rnd, this.lastKind, ownedVehicles());
     this.lastKind = kind;
     this.vehicle = createVehicle(kind);
     const d = VEHICLES[kind];
@@ -1656,6 +1659,7 @@ export class Game {
       shield: this.shield,
       turbo: this.turbo > 0,
       caught: this.state === 'caught' || this.state === 'over',
+      outfit: getSave().outfit, // lo que compraste en la tienda
     };
     if (!v) {
       drawGroom(ctx, GROOM_X + this.introX, this.cy, pose);

@@ -4,6 +4,7 @@
  * (modo privado, pruebas en Node): en ese caso vive solo en memoria.
  */
 import type { VehicleKind } from './constants';
+import { DEFAULT_OUTFIT, SLOTS, validKey, ITEM_BY_ID, type Outfit } from './shopData';
 
 const KEY = 'novio_en_fuga_save_v1';
 const OLD_BEST_KEY = 'novio_en_fuga_best'; // versión anterior: solo guardaba la mejor distancia
@@ -45,6 +46,12 @@ export interface SaveData {
   records: Records;
   /** id de logro -> fecha (ms) en que se desbloqueó */
   unlocked: Record<string, number>;
+  /** Anillos guardados de todas las partidas y todavía sin gastar */
+  wallet: number;
+  /** id de artículo comprado -> fecha (ms) de la compra */
+  owned: Record<string, number>;
+  /** Atuendo puesto */
+  outfit: Outfit;
 }
 
 export function blankTotals(): Totals {
@@ -60,7 +67,7 @@ export function blankRecords(): Records {
 }
 
 export function blankSave(): SaveData {
-  return { version: 1, best: 0, totals: blankTotals(), records: blankRecords(), unlocked: {} };
+  return { version: 1, best: 0, totals: blankTotals(), records: blankRecords(), unlocked: {}, wallet: 0, owned: {}, outfit: { ...DEFAULT_OUTFIT } };
 }
 
 const num = (v: unknown) => (typeof v === 'number' && isFinite(v) && v >= 0 ? v : 0);
@@ -84,6 +91,28 @@ function sanitize(raw: unknown): SaveData {
   if (r.unlocked && typeof r.unlocked === 'object') {
     for (const [id, when] of Object.entries(r.unlocked)) {
       if (typeof when === 'number' && isFinite(when)) out.unlocked[id] = when;
+    }
+  }
+  if (typeof r.wallet === 'number') {
+    out.wallet = Math.floor(num(r.wallet));
+  } else {
+    // datos de antes de la tienda: los anillos recogidos hasta ahora pasan a la cartera
+    out.wallet = Math.floor(out.totals.rings);
+  }
+  if (r.owned && typeof r.owned === 'object') {
+    for (const [id, when] of Object.entries(r.owned)) {
+      if (ITEM_BY_ID[id] && typeof when === 'number' && isFinite(when)) out.owned[id] = when;
+    }
+  } else {
+    // y los vehículos que ya habías usado quedan comprados
+    for (const k of Object.keys(out.totals.kinds) as VehicleKind[]) if (out.totals.kinds[k] > 0) out.owned[`veh:${k}`] = Date.now();
+  }
+  // atuendo: solo se acepta lo que existe y lo que realmente tienes
+  for (const { slot } of SLOTS) {
+    const key = (r.outfit as Partial<Outfit> | undefined)?.[slot];
+    if (validKey(slot, key)) {
+      const item = ITEM_BY_ID[`${slot}:${key}`];
+      if (item.price === 0 || out.owned[item.id]) out.outfit[slot] = key;
     }
   }
   return out;

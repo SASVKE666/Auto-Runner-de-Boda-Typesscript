@@ -83,6 +83,11 @@ export interface Snapshot {
   total: Totals;
   /** Logros ya desbloqueados (sin contar el que se está evaluando) */
   unlockedCount: number;
+  /** Compras hechas en la tienda (todas / solo atuendo / solo vehículos) y anillos en la cartera */
+  bought: number;
+  outfitBought: number;
+  vehiclesOwned: number;
+  wallet: number;
 }
 
 /** Valores vivos: lo guardado + la partida en curso (o ya confirmada, si `committed`) */
@@ -92,11 +97,16 @@ export function liveSnapshot(save: SaveData, run: RunStats, committed: boolean):
     rec: mergeRecords(save.records, runRecords(run)),
     total,
     unlockedCount: Object.keys(save.unlocked).length,
+    bought: Object.keys(save.owned).length,
+    outfitBought: Object.keys(save.owned).filter((id) => !id.startsWith('veh:')).length,
+    vehiclesOwned: Object.keys(save.owned).filter((id) => id.startsWith('veh:')).length,
+    // la partida en curso aún no se ha guardado en la cartera
+    wallet: save.wallet + (committed ? 0 : run.rings),
   };
 }
 
-export type AchievementGroup = 'Distancia' | 'Anillos' | 'Habilidad' | 'Poderes' | 'Vehículos' | 'Constancia';
-export const GROUPS: AchievementGroup[] = ['Distancia', 'Anillos', 'Habilidad', 'Poderes', 'Vehículos', 'Constancia'];
+export type AchievementGroup = 'Distancia' | 'Anillos' | 'Habilidad' | 'Poderes' | 'Vehículos' | 'Tienda' | 'Constancia';
+export const GROUPS: AchievementGroup[] = ['Distancia', 'Anillos', 'Habilidad', 'Poderes', 'Vehículos', 'Tienda', 'Constancia'];
 
 export interface AchievementDef {
   id: string;
@@ -147,6 +157,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'crush5', group: 'Vehículos', icon: '🥂', name: 'Aplastacopas', desc: 'Aplasta 5 torres de copas con la limusina.', target: 5, unit: 'torres', value: (s) => s.total.towersCrushed },
   { id: 'flip20', group: 'Vehículos', icon: '🔄', name: 'Gravedad nupcial', desc: 'Invierte la gravedad 20 veces con la carroza de Cupido.', target: 20, unit: 'veces', value: (s) => s.total.flips },
   { id: 'flap100', group: 'Vehículos', icon: '🦢', name: 'Cisne a toda ala', desc: 'Da 100 aletazos con el cisne inflable.', target: 100, unit: 'aletazos', value: (s) => s.total.flaps },
+
+  // --- Tienda ---
+  { id: 'shop1', group: 'Tienda', icon: '🛍️', name: 'Primera compra', desc: 'Compra algo en la tienda.', target: 1, value: (s) => s.bought },
+  { id: 'saver', group: 'Tienda', icon: '🏦', name: 'Ahorrador', desc: 'Junta 1000 anillos en tu cartera.', target: 1000, unit: 'anillos', value: (s) => s.wallet },
+  { id: 'style6', group: 'Tienda', icon: '💃', name: 'Novio de revista', desc: 'Compra 6 prendas o accesorios.', target: 6, unit: 'prendas', value: (s) => s.outfitBought },
+  { id: 'veh3', group: 'Tienda', icon: '🚘', name: 'Dueño del garaje', desc: 'Compra los 3 vehículos.', target: 3, unit: 'vehículos', value: (s) => s.vehiclesOwned },
 
   // --- Constancia ---
   { id: 'g10', group: 'Constancia', icon: '🎖️', name: 'Veterano de bodas', desc: 'Juega 10 partidas.', target: 10, unit: 'partidas', value: (s) => s.total.games },

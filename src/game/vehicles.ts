@@ -57,10 +57,11 @@ export function createVehicle(kind: VehicleKind): Vehicle {
 }
 
 /** Elige un vehículo al azar, sin repetir el último */
-export function pickVehicle(rnd: () => number, last: VehicleKind | null): VehicleKind {
-  const all = Object.keys(VEHICLES) as VehicleKind[];
+export function pickVehicle(rnd: () => number, last: VehicleKind | null, owned?: VehicleKind[]): VehicleKind {
+  const all = owned && owned.length ? owned : (Object.keys(VEHICLES) as VehicleKind[]);
   const pool = all.filter((k) => k !== last);
-  return pool[Math.floor(rnd() * pool.length)];
+  const from = pool.length ? pool : all; // si solo tienes uno, siempre ese
+  return from[Math.floor(rnd() * from.length)];
 }
 
 /** Caja de colisión actual del vehículo (incluye al novio) */
