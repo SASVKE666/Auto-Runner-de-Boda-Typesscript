@@ -4,7 +4,7 @@
  * (modo privado, pruebas en Node): en ese caso vive solo en memoria.
  */
 import type { VehicleKind } from './constants';
-import { DEFAULT_OUTFIT, DEFAULT_VEHICLE_SKINS, SLOTS, validKey, validVehicleSkin, ITEM_BY_ID, type Outfit } from './shopData';
+import { DEFAULT_OUTFIT, DEFAULT_VEHICLE_SKINS, LEGACY_VEHICLE_PRICES, SLOTS, validKey, validVehicleSkin, ITEM_BY_ID, type Outfit } from './shopData';
 
 const KEY = 'novio_en_fuga_save_v1';
 const OLD_BEST_KEY = 'novio_en_fuga_best'; // versión anterior: solo guardaba la mejor distancia
@@ -104,10 +104,9 @@ function sanitize(raw: unknown): SaveData {
   if (r.owned && typeof r.owned === 'object') {
     for (const [id, when] of Object.entries(r.owned)) {
       if (ITEM_BY_ID[id] && typeof when === 'number' && isFinite(when)) out.owned[id] = when;
+      // los vehículos ya no se compran: se reembolsa lo que costaron
+      else if (LEGACY_VEHICLE_PRICES[id] && typeof when === 'number') out.wallet += LEGACY_VEHICLE_PRICES[id];
     }
-  } else {
-    // y los vehículos que ya habías usado quedan comprados
-    for (const k of Object.keys(out.totals.kinds) as VehicleKind[]) if (out.totals.kinds[k] > 0) out.owned[`veh:${k}`] = Date.now();
   }
   // atuendo: solo se acepta lo que existe y lo que realmente tienes
   for (const { slot } of SLOTS) {

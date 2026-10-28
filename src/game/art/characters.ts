@@ -63,13 +63,32 @@ function limb(
   len: number,
   w: number,
   sleeve: string,
-  hand: string
+  hand: string,
+  claw = false,
+  item?: (ctx: CanvasRenderingContext2D) => void
 ) {
   ctx.save();
   ctx.translate(sx, sy);
   ctx.rotate(ang);
   rrect(ctx, -w / 2, -2, w, len, w / 2, sleeve, 2.5);
-  circle(ctx, 0, len + 1.5, 4.6, hand, 2.5);
+  if (claw) {
+    // pinza: dos lóbulos separados por una muesca
+    circle(ctx, 0, len + 0.5, 5.4, hand, 2.5);
+    for (const sgn of [-1, 1]) {
+      ctx.save();
+      ctx.translate(sgn * 3.4, len + 6);
+      ctx.rotate(-sgn * 0.3);
+      ellipse(ctx, 0, 0, 3.2, 5.2, hand, 2.3);
+      ctx.restore();
+    }
+  } else {
+    circle(ctx, 0, len + 1.5, 4.6, hand, 2.5);
+  }
+  if (item) {
+    ctx.translate(0, len + 1.5);
+    ctx.rotate(-ang); // cuelga hacia abajo
+    item(ctx);
+  }
   ctx.restore();
 }
 
@@ -240,7 +259,7 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
     backArm = -1.1;
     frontArm = -1.3 + Math.sin(t * 9) * 0.04;
   }
-  limb(ctx, -3, -12, backArm, 18, 8, TUX, handCol);
+  limb(ctx, -3, -12, backArm, 18, 8, TUX, handCol, cos?.claws);
 
   // --- Piernas ---
   let legA: number;
@@ -369,7 +388,7 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
   }
 
   // --- Brazo delantero ---
-  limb(ctx, 6, -11, frontArm, 18, 8, TUX, handCol);
+  limb(ctx, 6, -11, frontArm, 18, 8, TUX, handCol, cos?.claws, cos?.item);
 
   // Estrellas de aturdimiento
   if (p.stunned) {

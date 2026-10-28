@@ -26,6 +26,10 @@ export interface CostumeDef {
   shirt: boolean;
   hair: boolean;
   noLegs?: boolean;
+  /** Manos en forma de pinza */
+  claws?: boolean;
+  /** Objeto que lleva en la mano delantera (se dibuja en el origen de la mano, 'colgando') */
+  item?: (ctx: CanvasRenderingContext2D) => void;
   /** Detrás del cuerpo (colas, espadas...) */
   back?: (ctx: CanvasRenderingContext2D, c: CostumeCtx) => void;
   /** Sobre el torso, bajo la cabeza */
@@ -375,6 +379,138 @@ export const COSTUMES: Record<string, CostumeDef> = {
       rrect(ctx, -9, -47, 30, 6, 2, '#d63a4a', 2.4);
       circle(ctx, 6, -44, 2.2, '#f2d35a', 1.2);
     },
+  },
+};
+
+COSTUMES.crab = {
+  skin: '#f4cf45',
+  shade: '#d9a92c',
+  main: '#e8502a',
+  sash: '#b5361c',
+  hand: '#e8502a',
+  shoe: '#b5361c',
+  shirt: false,
+  hair: false,
+  claws: true,
+  back: (ctx, { t }) => {
+    // patitas de cangrejo asomando por detrás
+    const w = Math.sin(t * 10) * 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (let i = 0; i < 3; i++) {
+      for (const [lw, col] of [
+        [6.6, COLORS.ink],
+        [3.6, '#e8502a'],
+      ] as const) {
+        ctx.beginPath();
+        ctx.moveTo(-12, -4 + i * 9);
+        ctx.lineTo(-24 - i * 2, 2 + i * 9 + w * (i % 2 ? -1 : 1));
+        ctx.lineTo(-30 - i * 2, 14 + i * 9);
+        ctx.lineWidth = lw;
+        ctx.strokeStyle = col;
+        ctx.stroke();
+      }
+    }
+  },
+  body: (ctx) => {
+    // caparazón de la panza con cierre
+    ellipse(ctx, 2, 3, 10.5, 14, '#8a3b1f', 2.4);
+    ctx.strokeStyle = '#6b2a14';
+    ctx.lineWidth = 1.6;
+    for (const y of [-2, 5, 12]) {
+      ctx.beginPath();
+      ctx.moveTo(-6, y);
+      ctx.quadraticCurveTo(2, y + 3, 10, y);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(2, -17);
+    ctx.lineTo(2, 16);
+    ink(ctx, null, 2);
+    rrect(ctx, 0, -16, 4, 6, 1, '#d9d9d9', 1.6);
+  },
+  head: (ctx, { t, fear }) => {
+    // capucha roja alrededor de la cara
+    ctx.lineCap = 'round';
+    for (const [lw, col] of [
+      [10, COLORS.ink],
+      [6, '#e8502a'],
+    ] as const) {
+      ctx.beginPath();
+      ctx.arc(6, -33, 16.4, -0.5, 2.3, true);
+      ctx.lineWidth = lw;
+      ctx.strokeStyle = col;
+      ctx.stroke();
+    }
+    // ojos saltones sobre tallos
+    const sw = Math.sin(t * 5) * 3 + fear * 2;
+    for (const [bx, tx, ph] of [
+      [-1, -4, 0],
+      [12, 16, 1.4],
+    ] as const) {
+      const ex = tx + sw * (ph ? -1 : 1);
+      for (const [lw, col] of [
+        [6.4, COLORS.ink],
+        [3.6, '#e8502a'],
+      ] as const) {
+        ctx.beginPath();
+        ctx.moveTo(bx, -48);
+        ctx.quadraticCurveTo(bx + (ex - bx) * 0.2, -60, ex, -68);
+        ctx.lineWidth = lw;
+        ctx.strokeStyle = col;
+        ctx.stroke();
+      }
+      circle(ctx, ex, -70, 5.6, COLORS.white, 2.4);
+      circle(ctx, ex + 1, -70.4, 2.2, COLORS.ink, 0);
+    }
+    // flequillo marrón asomando por la capucha
+    poly(ctx, [-4, -45, 3, -53, 14, -53, 21, -45, 17, -42, 12, -47, 8, -42, 3, -46, 0, -41], COLORS.hair, 2.4);
+  },
+};
+
+COSTUMES.office = {
+  skin: '#fbfbfb',
+  shade: '#dcdcdc',
+  main: '#1f2a52',
+  sash: '#12183a',
+  hand: '#ffffff',
+  shoe: '#14141c',
+  shirt: true,
+  hair: false,
+  item: (ctx) => {
+    // maletín
+    ctx.strokeStyle = COLORS.ink;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(0, 4, 4, Math.PI, 0);
+    ctx.stroke();
+    rrect(ctx, -9, 4, 18, 13, 2.4, '#8a5a2b', 2.4);
+    rrect(ctx, -1.5, 8, 3, 3.6, 0.8, COLORS.gold, 1.4);
+  },
+  body: (ctx) => {
+    // corbata azul
+    poly(ctx, [4.2, -17, 11, -17, 10, -13, 5.2, -13], '#2a3bff', 2);
+    poly(ctx, [5.2, -13, 10, -13, 12.5, 4, 7.6, 8.5, 3.4, 4], '#3a4bff', 2.2);
+    rrect(ctx, -11, -6, 7, 3.4, 1, '#3a4a80', 1.4); // bolsillo
+  },
+  head: (ctx, { fear }) => {
+    // cara lisa: ojos grandes y vacíos
+    ellipse(ctx, 11, -26.5, 4.2, 2.8, '#fbfbfb', 0);
+    ellipse(ctx, 13, -34, 6.4, 7.6 + fear, '#ffffff', 2.2);
+    circle(ctx, 14.8, -33.4, 1.5, COLORS.ink, 0);
+    ctx.beginPath();
+    ctx.moveTo(7, -43.5 + fear * 1.5);
+    ctx.quadraticCurveTo(13, -46, 19, -43.5 - fear * 3);
+    ink(ctx, null, 1.8);
+    // parche en la boca
+    poly(ctx, [10, -26.5, 22, -27.5, 23, -21, 11, -20], '#e9e9e9', 1.8);
+    ctx.beginPath();
+    ctx.moveTo(12.5, -23);
+    ctx.lineTo(14.5, -25);
+    ctx.lineTo(16.5, -22.5);
+    ctx.lineTo(18.5, -25);
+    ctx.lineTo(20.5, -22.5);
+    ink(ctx, null, 1.2);
   },
 };
 

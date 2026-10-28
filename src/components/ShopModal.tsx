@@ -10,7 +10,6 @@ import {
   SLOTS,
   SUIT_COLORS,
   PACK_COLORS,
-  VEHICLE_ITEMS,
   vehicleSkinsOf,
   itemsOfSlot,
   type Outfit,
@@ -77,7 +76,6 @@ const Action: React.FC<{
   onEquip: () => void;
 }> = ({ item, save, equipped, onBuy, onEquip }) => {
   if (isOwned(item, save)) {
-    if (item.vehicle && !item.skinKey) return <span className="font-display text-sm text-emerald-700">✔ Comprado</span>;
     return equipped ? (
       <span className="font-display text-sm text-emerald-700">✔ Puesto</span>
     ) : (
@@ -102,12 +100,11 @@ const Action: React.FC<{
 const SkinPicker: React.FC<{
   kind: VehicleKind;
   save: SaveData;
-  vehicleOwned: boolean;
   selected: string;
   onSelect: (key: string) => void;
   onBuy: (item: ShopItem) => void;
   onEquip: (item: ShopItem) => void;
-}> = ({ kind, save, vehicleOwned, selected, onSelect, onBuy, onEquip }) => {
+}> = ({ kind, save, selected, onSelect, onBuy, onEquip }) => {
   const skins = vehicleSkinsOf(kind);
   const sel = skins.find((s) => s.skinKey === selected) ?? skins[0];
   return (
@@ -136,13 +133,7 @@ const SkinPicker: React.FC<{
       </div>
       <div className="mt-1.5 flex items-center gap-2 flex-wrap min-h-[1.75rem]">
         <span className="font-display text-[13px] text-[#2a1420]">{sel.name}</span>
-        {!vehicleOwned && !isOwned(sel, save) ? (
-          <span className="text-xs font-semibold text-rose-700" data-testid="skin-locked">
-            Compra el vehículo primero
-          </span>
-        ) : (
-          <Action item={sel} save={save} equipped={save.vehicleSkins[kind] === sel.skinKey} onBuy={() => onBuy(sel)} onEquip={() => onEquip(sel)} />
-        )}
+        <Action item={sel} save={save} equipped={save.vehicleSkins[kind] === sel.skinKey} onBuy={() => onBuy(sel)} onEquip={() => onEquip(sel)} />
       </div>
     </div>
   );
@@ -318,36 +309,27 @@ export const ShopModal: React.FC<Props> = ({ save, onClose }) => {
           {tab === 'vehiculos' && (
             <div className="space-y-3">
               <p className="text-[#4a1230] text-xs sm:text-sm">
-                Compra un vehículo para que pueda salir de los <b>🎁 regalos de boda</b> durante la fuga. Cada uno aguanta <b>un golpe</b>.
-                {VEHICLE_ITEMS.every((v) => !isOwned(v, save)) && <b> Sin vehículos comprados no salen regalos.</b>}
+                Los vehículos salen <b>gratis</b> de los <b>🎁 regalos de boda</b> durante la fuga y cada uno aguanta <b>un golpe</b>. Aquí compras sus <b>skins</b>.
               </p>
-              {VEHICLE_ITEMS.map((it) => {
-                const k = it.vehicle!;
+              {(Object.keys(VEHICLES) as VehicleKind[]).map((k) => {
                 const d = VEHICLES[k];
-                const owned = isOwned(it, save);
+                const skin = tryingVSkin[k] ?? save.vehicleSkins[k];
                 return (
-                  <div key={it.id} className="flex gap-3 items-center rounded-2xl border-[3px] border-[#2a1420] bg-white/70 p-2.5" data-testid="vehicle">
+                  <div key={k} className="flex gap-3 items-center rounded-2xl border-[3px] border-[#2a1420] bg-white/70 p-2.5" data-testid="vehicle">
                     <div className="shrink-0 rounded-xl bg-[#2a0b1d]/85 border-2 border-[#2a1420]">
-                      <VehicleIcon kind={k} locked={!owned} skin={tryingVSkin[k] ?? save.vehicleSkins[k]} />
+                      <VehicleIcon kind={k} skin={skin} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-display text-[#2a1420] leading-tight">{d.name}</div>
                       <div className="text-[#4a1230] text-xs leading-snug">{d.blurb}</div>
                       <div className="mt-0.5 text-xs font-semibold text-rose-700">🎮 {d.how}</div>
-                      <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                        {!owned && (
-                          <span className="font-display text-sm text-[#7a1f3d]">
-                            <Ring /> {it.price.toLocaleString()}
-                          </span>
-                        )}
-                        <Action item={it} save={save} equipped={false} onBuy={() => buy(it)} onEquip={() => undefined} />
-                        {owned && <span className="text-[10px] text-[#4a1230]/70">Usado {save.totals.kinds[k]} {save.totals.kinds[k] === 1 ? 'vez' : 'veces'}</span>}
+                      <div className="mt-0.5 text-[10px] text-[#4a1230]/70">
+                        Usado {save.totals.kinds[k]} {save.totals.kinds[k] === 1 ? 'vez' : 'veces'}
                       </div>
                       <SkinPicker
                         kind={k}
                         save={save}
-                        vehicleOwned={owned}
-                        selected={tryingVSkin[k] ?? save.vehicleSkins[k]}
+                        selected={skin}
                         onSelect={(key) => setTryingVSkin((t) => ({ ...t, [k]: key }))}
                         onBuy={buy}
                         onEquip={equip}

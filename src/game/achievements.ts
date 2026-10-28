@@ -86,7 +86,7 @@ export interface Snapshot {
   /** Compras hechas en la tienda (todas / solo atuendo / solo vehículos) y anillos en la cartera */
   bought: number;
   outfitBought: number;
-  vehiclesOwned: number;
+  vehiclesSkinned: number;
   skinsOwned: number;
   wallet: number;
 }
@@ -99,8 +99,8 @@ export function liveSnapshot(save: SaveData, run: RunStats, committed: boolean):
     total,
     unlockedCount: Object.keys(save.unlocked).length,
     bought: Object.keys(save.owned).length,
-    outfitBought: Object.keys(save.owned).filter((id) => !id.startsWith('veh:')).length,
-    vehiclesOwned: Object.keys(save.owned).filter((id) => id.startsWith('veh:')).length,
+    outfitBought: Object.keys(save.owned).filter((id) => !id.startsWith('vskin:')).length,
+    vehiclesSkinned: new Set(Object.keys(save.owned).filter((id) => id.startsWith('vskin:')).map((id) => id.split(':')[1])).size,
     skinsOwned: Object.keys(save.owned).filter((id) => id.startsWith('skin:') || id.startsWith('vskin:')).length,
     // la partida en curso aún no se ha guardado en la cartera
     wallet: save.wallet + (committed ? 0 : run.rings),
@@ -165,7 +165,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'saver', group: 'Tienda', icon: '🏦', name: 'Ahorrador', desc: 'Junta 1000 anillos en tu cartera.', target: 1000, unit: 'anillos', value: (s) => s.wallet },
   { id: 'style6', group: 'Tienda', icon: '💃', name: 'Novio de revista', desc: 'Compra 6 prendas o accesorios.', target: 6, unit: 'prendas', value: (s) => s.outfitBought },
   { id: 'disguise', group: 'Tienda', icon: '🎭', name: 'Cambio de look', desc: 'Compra una skin de personaje o de vehículo.', target: 1, value: (s) => s.skinsOwned },
-  { id: 'veh3', group: 'Tienda', icon: '🚘', name: 'Dueño del garaje', desc: 'Compra los 3 vehículos.', target: 3, unit: 'vehículos', value: (s) => s.vehiclesOwned },
+  { id: 'veh3', group: 'Tienda', icon: '🚘', name: 'Garaje a todo color', desc: 'Compra una skin para cada uno de los 3 vehículos.', target: 3, unit: 'vehículos', value: (s) => s.vehiclesSkinned },
 
   // --- Constancia ---
   { id: 'g10', group: 'Constancia', icon: '🎖️', name: 'Veterano de bodas', desc: 'Juega 10 partidas.', target: 10, unit: 'partidas', value: (s) => s.total.games },

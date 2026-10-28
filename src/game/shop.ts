@@ -6,7 +6,7 @@ import { ITEM_BY_ID, type ShopItem, type Slot } from './shopData';
 
 export const isOwned = (item: ShopItem, save = getSave()) => item.price === 0 || !!save.owned[item.id];
 
-export type BuyResult = { ok: true; unlocked: AchievementDef[] } | { ok: false; reason: 'owned' | 'poor' | 'unknown' | 'novehicle' };
+export type BuyResult = { ok: true; unlocked: AchievementDef[] } | { ok: false; reason: 'owned' | 'poor' | 'unknown' };
 
 /** Desbloquea los logros que se cumplan ahora (p. ej. tras una compra) */
 export function unlockEarned(): AchievementDef[] {
@@ -26,8 +26,6 @@ export function buyItem(id: string): BuyResult {
   if (!item) return { ok: false, reason: 'unknown' };
   const save = getSave();
   if (isOwned(item, save)) return { ok: false, reason: 'owned' };
-  // las skins de un vehículo solo se compran si ya tienes ese vehículo
-  if (item.vehicle && item.skinKey && !save.owned[`veh:${item.vehicle}`]) return { ok: false, reason: 'novehicle' };
   if (save.wallet < item.price) return { ok: false, reason: 'poor' };
   updateSave((d) => {
     d.wallet -= item.price;
@@ -55,9 +53,3 @@ export function equipItem(id: string): boolean {
   return true;
 }
 
-/** Vehículos comprados (los únicos que pueden salir de los regalos de boda) */
-export function ownedVehicles(save = getSave()) {
-  return Object.values(ITEM_BY_ID)
-    .filter((i) => i.vehicle && !i.skinKey && isOwned(i, save))
-    .map((i) => i.vehicle!);
-}

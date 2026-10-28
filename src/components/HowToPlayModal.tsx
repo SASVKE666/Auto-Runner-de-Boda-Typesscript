@@ -42,12 +42,12 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ onClose }) => {
             <b>Velo</b>: aguanta un golpe. <b>Imán</b>: atrae los anillos. <b>Luna de miel</b>: turbo invencible que rompe todo y te aleja de la novia.
           </Row>
           <Row icon="🛍️" title="Tienda">
-            Los anillos que recoges se guardan al terminar cada partida. Gástalos en la tienda: <b>vestir al novio</b>, <b>cambiarlo por un disfraz</b>, <b>comprar vehículos</b> y ponerles <b>skins</b>.
+            Los anillos que recoges se guardan al terminar cada partida. Gástalos en la tienda: <b>vestir al novio</b>, <b>cambiarlo por un disfraz</b>, y comprar <b>skins</b> para los vehículos.
           </Row>
           <Row icon="🎁" title="Regalos de boda y vehículos">
-            Con un vehículo comprado, cruza un regalo para subirte: <b>Cisne Inflable</b> (toca para aletear), <b>Limusina</b> (salta y aplasta las torres de copas) o <b>Carroza de Cupido</b> (toca para invertir la gravedad). Cada uno aguanta un golpe.
+            Cruza un regalo para subirte a un vehículo (son gratis): <b>Cisne Inflable</b> (toca para aletear), <b>Limusina</b> (salta y aplasta las torres de copas) o <b>Carroza de Cupido</b> (toca para invertir la gravedad). Cada uno aguanta un golpe.
           </Row>
-          <Row icon="🏆" title="Logros">Cumple retos para desbloquear logros. Míralos en el menú, junto con tu garaje.</Row>
+          <Row icon="🏆" title="Logros">Cumple retos para desbloquear logros. Míralos en el menú.</Row>
           <Row icon="⏸️" title="Pausa">Pulsa P o Esc. El juego se pausa solo si cambias de pestaña.</Row>
         </div>
 

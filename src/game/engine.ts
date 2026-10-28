@@ -53,7 +53,6 @@ import {
   type RunStats,
 } from './achievements';
 import { getSave, updateSave } from './save';
-import { ownedVehicles } from './shop';
 
 export interface GameStats {
   score: number;
@@ -886,7 +885,6 @@ export class Game {
     const script = ['ringsLine', 'tower', 'ringsWave', 'zapperH', 'chandelier'];
     const giftDue =
       !this.vehicle &&
-      ownedVehicles().length > 0 && // solo salen regalos si ya compraste algún vehículo en la tienda
       m >= FIRST_GIFT_M &&
       (this.giftsSpawned === 0 || (this.sinceGift >= GIFT_MIN_PATTERNS && this.rnd() < 0.3));
     if (this.patternIndex < script.length) {
@@ -1435,7 +1433,7 @@ export class Game {
 
   private openGift(g: Gift) {
     g.taken = true;
-    const kind = pickVehicle(this.rnd, this.lastKind, ownedVehicles());
+    const kind = pickVehicle(this.rnd, this.lastKind);
     this.lastKind = kind;
     this.vehicle = createVehicle(kind);
     const d = VEHICLES[kind];
