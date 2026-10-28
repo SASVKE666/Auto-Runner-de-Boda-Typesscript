@@ -46,6 +46,7 @@ Las rutas de 1 y 2 las resuelve Vite (con `base: './'` en `vite.config.ts`), as�
 - `src/game/constants.ts` – tamaños, colores, zonas, textos y valores de power-ups.
 - `src/game/art/` – arte 100% vectorial en canvas: `characters.ts`, `props.ts`, `backgrounds.ts`, `core.ts`.
 - `src/game/sound.ts` – efectos con Web Audio y música del gameplay desde `public/assets/music/gameplay.mp3`: suena completa una vez y repite el tramo 16.16 s → 180.73 s (ajustable con `LOOP_START`/`LOOP_END`; el archivo lleva el fundido cruzado horneado). Si la pista no carga, usa la música de boda sintetizada.
+- `src/game/art/fx.ts` – postproceso cinematográfico: luz dinámica (resplandores aditivos del novio, anillos, zappers, misiles, regalos y candelabros), sombras suaves de contacto, oclusión en techo/piso, haces de luz y niebla por zona, polvo y destellos sutiles, grano de película y gradación de color/contraste. La capa lejana del fondo sale desenfocada (profundidad de campo, `blur` en `backgrounds.ts`). No cambia ningún diseño y no usa el azar del juego. La calidad se adapta sola a los fps (3 niveles) o se fuerza con `localStorage.novio_en_fuga_fx = 'off' | 'low' | 'mid' | 'high'`.
 - `src/game/RunnerCanvas.tsx` – monta el canvas y captura la entrada.
 - `src/components/` – menú, game over y cómo jugar.
 
