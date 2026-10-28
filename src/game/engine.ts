@@ -28,7 +28,8 @@ import {
   type VehicleKind,
 } from './constants';
 import { sound } from './sound';
-import { drawBackdropVeil, drawFloorShadow, drawVignette, drawZone } from './art/backgrounds';
+import { drawBackdropVeil, drawVignette, drawZone } from './art/backgrounds';
+import { drawAmbientBack, drawAtmosphere, drawGrade, drawLights, fxTick, softShadow, type Light } from './art/fx';
 import { drawChurch, drawChurchCarpet, DOOR_HALF_W } from './art/church';
 import { drawBride, drawGroom, GROOM_SKIN, NOZZLES, type GroomPose } from './art/characters';
 import { circle, clamp, drawHeart, drawText, lerp, poly, rrect } from './art/core';
@@ -1558,7 +1559,35 @@ export class Game {
   /* Dibujo                                                              */
   /* ------------------------------------------------------------------ */
 
+  /** Luces dinámicas de la escena (resplandores aditivos): jugador, anillos, peligros y regalos */
+  private collectLights(): Light[] {
+    const L: Light[] = [];
+    if (!this.preRun) {
+      const gx = GROOM_X + this.introX;
+      const turbo = this.turbo > 0;
+      L.push({ x: gx, y: this.cy, r: turbo ? 170 : 100, color: turbo ? 'gold' : 'warm', a: turbo ? 0.55 : 0.26 });
+      if (this.thrusting && !this.vehicle) L.push({ x: gx - 22, y: this.cy + 26, r: 58, color: 'orange', a: 0.42 });
+      if (this.shield) L.push({ x: gx, y: this.cy, r: 90, color: 'white', a: 0.2 });
+    }
+    let nr = 0;
+    for (const r of this.rings) {
+      if (r.x > -20 && r.x < W + 20 && nr++ < 14) L.push({ x: r.x, y: r.y, r: 30, color: 'gold', a: 0.3 });
+    }
+    for (const p of this.pickups) if (p.x > -30 && p.x < W + 30) L.push({ x: p.x, y: p.y, r: 44, color: 'white', a: 0.4 });
+    for (const g of this.gifts) if (g.x > -40 && g.x < W + 40) L.push({ x: g.x, y: g.y, r: 66, color: 'gold', a: 0.55 });
+    for (const z of this.zappers) {
+      if (z.x2 < -60 || z.x1 > W + 60) continue;
+      L.push({ x: z.x1, y: z.y1, r: 44, color: 'pink', a: 0.5 });
+      L.push({ x: z.x2, y: z.y2, r: 44, color: 'pink', a: 0.5 });
+      L.push({ x: (z.x1 + z.x2) / 2, y: (z.y1 + z.y2) / 2, r: 38, color: 'pink', a: 0.32 });
+    }
+    for (const mi of this.missiles) if (mi.x > -60 && mi.x < W + 100) L.push({ x: mi.x + 32, y: mi.y, r: 62, color: 'orange', a: 0.5 });
+    for (const ch of this.chandeliers) if (ch.x > -120 && ch.x < W + 120) L.push({ x: ch.x, y: CEIL_Y + ch.len + 44, r: 110, color: 'warm', a: 0.28 });
+    return L;
+  }
+
   render(ctx: CanvasRenderingContext2D) {
+    fxTick();
     ctx.save();
     if (this.shake > 0) {
       const a = Math.min(1, this.shake * 2.2) * 6;
@@ -1589,9 +1618,18 @@ export class Game {
       t: this.t,
     });
     drawBackdropVeil(ctx);
+    const zoneIdx = ZONE_ORDER[this.zoneTo];
+    drawAmbientBack(ctx, zoneIdx, this.t, this.dist); // oclusión, haces de luz y niebla
 
-    // sombra del novio
-    if (!this.preRun) drawFloorShadow(ctx, GROOM_X + this.introX, FLOOR_Y - 36 - this.cy + 36, 22);
+    // sombras suaves de contacto
+    if (!this.preRun) softShadow(ctx, GROOM_X + this.introX, FLOOR_Y - this.cy - 36, this.vehicle ? 46 : 24);
+    for (const tw of this.towers) {
+      if (tw.x < -140 || tw.x > W + 140) continue;
+      const base = P.towerRects(tw.x, tw.rows)[0];
+      softShadow(ctx, base.x + base.w / 2, 0, base.w / 2 + 8, 0.9);
+    }
+    if (!this.preRun) softShadow(ctx, this.brideX, FLOOR_Y - this.brideY - 40, 30, 0.8);
+    for (const g of this.gifts) softShadow(ctx, g.x, FLOOR_Y - g.y, 16, 0.7);
 
     // anillos y power-ups
     for (const r of this.rings) {
@@ -1617,6 +1655,7 @@ export class Game {
 
     // partículas
     this.drawParticles(ctx);
+    drawLights(ctx, this.collectLights(), this.t);
 
     // advertencias de misil (encima de todo, sin temblor propio)
     for (const w of this.warnings) {
@@ -1625,8 +1664,10 @@ export class Game {
     ctx.restore();
 
     // efectos de pantalla completa
+    drawAtmosphere(ctx, zoneIdx, this.t, this.dist); // polvo y destellos
     if (this.turbo > 0) this.drawSpeedLines(ctx);
     drawVignette(ctx);
+    drawGrade(ctx, zoneIdx, ZONE_ORDER[this.zoneFrom], this.zoneCutX, this.t); // color, contraste y grano
     if (closeness > 0.65 && !this.preRun) {
       const pulse = 0.5 + 0.5 * Math.sin(this.t * 9);
       ctx.fillStyle = `rgba(255,30,70,${(closeness - 0.65) * 0.55 * (0.5 + pulse * 0.5)})`;

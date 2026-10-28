@@ -3,7 +3,7 @@
  * en mosaico: lejana, media, techo y piso.
  */
 import { CEIL_Y, COLORS, FLOOR_Y, H, W } from '../constants';
-import { circle, ellipse, getSprite, ink, poly, rand01, rrect } from './core';
+import { circle, ellipse, getSprite, ink, makeCanvas, poly, rand01, rrect } from './core';
 
 interface Layer {
   key: string;
@@ -11,6 +11,8 @@ interface Layer {
   y: number;
   h: number;
   speed: number;
+  /** Profundidad de campo: 0..1 = cuánto se desenfoca (solo capas lejanas) */
+  blur?: number;
   draw: (c: CanvasRenderingContext2D) => void;
 }
 
@@ -648,19 +650,19 @@ function cathedralFloor(c: C) {
 
 const ZONE_DEFS: ZoneDef[] = [
   {
-    far: { key: 'salon_far', tileW: 480, y: 0, h: H, speed: 0.22, draw: salonFar },
+    far: { key: 'salon_far', tileW: 480, y: 0, h: H, speed: 0.22, blur: 0.5, draw: salonFar },
     mid: { key: 'salon_mid', tileW: 640, y: 250, h: 230, speed: 0.55, draw: salonMid },
     ceil: { key: 'salon_ceil', tileW: 160, y: 0, h: 112, speed: 1, draw: salonCeil },
     floor: { key: 'salon_floor', tileW: 120, y: FLOOR_Y - 4, h: H - FLOOR_Y + 4, speed: 1, draw: salonFloor },
   },
   {
-    far: { key: 'garden_far', tileW: 640, y: 0, h: H, speed: 0.15, draw: gardenFar },
+    far: { key: 'garden_far', tileW: 640, y: 0, h: H, speed: 0.15, blur: 0.5, draw: gardenFar },
     mid: { key: 'garden_mid', tileW: 480, y: 170, h: 310, speed: 0.5, draw: gardenMid },
     ceil: { key: 'garden_ceil', tileW: 200, y: 0, h: 110, speed: 1, draw: gardenCeil },
     floor: { key: 'garden_floor', tileW: 120, y: FLOOR_Y - 4, h: H - FLOOR_Y + 4, speed: 1, draw: gardenFloor },
   },
   {
-    far: { key: 'cath_far', tileW: 560, y: 0, h: H, speed: 0.2, draw: cathedralFar },
+    far: { key: 'cath_far', tileW: 560, y: 0, h: H, speed: 0.2, blur: 0.5, draw: cathedralFar },
     mid: { key: 'cath_mid', tileW: 400, y: 40, h: 440, speed: 0.55, draw: cathedralMid },
     ceil: { key: 'cath_ceil', tileW: 200, y: 0, h: 120, speed: 1, draw: cathedralCeil },
     floor: { key: 'cath_floor', tileW: 120, y: FLOOR_Y - 4, h: H - FLOOR_Y + 4, speed: 1, draw: cathedralFloor },
@@ -676,7 +678,43 @@ function layerSprite(l: Layer) {
     c.clip();
     l.draw(c);
     c.restore();
+    if (l.blur) softenTile(c, l.blur);
   });
+}
+
+/**
+ * Desenfoque ligero de una capa lejana (profundidad de campo), calculado una sola vez al crear
+ * el sprite: se reduce y se vuelve a ampliar. Se hace con la capa repetida 3 veces para que el
+ * borde del mosaico no marque costuras.
+ */
+function softenTile(c: CanvasRenderingContext2D, amount: number) {
+  const cv = c.canvas;
+  const pw = cv.width;
+  const ph = cv.height;
+  const k = Math.max(0.25, 1 - amount); // 0.5 = mitad de resolución
+  const wide = makeCanvas(pw * 3, ph);
+  const wctx = wide.getContext('2d');
+  const small = makeCanvas(Math.max(1, Math.round(pw * 3 * k)), Math.max(1, Math.round(ph * k)));
+  const sctx = small.getContext('2d');
+  if (!wctx || !sctx) return;
+  for (let i = 0; i < 3; i++) wctx.drawImage(cv, i * pw, 0);
+  sctx.imageSmoothingEnabled = true;
+  sctx.imageSmoothingQuality = 'high';
+  sctx.drawImage(wide, 0, 0, small.width, small.height);
+  // de vuelta al tamaño original, quedándose con la franja central
+  c.save();
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.clearRect(0, 0, pw, ph);
+  c.imageSmoothingEnabled = true;
+  c.imageSmoothingQuality = 'high';
+  c.drawImage(small, small.width / 3, 0, small.width / 3, small.height, 0, 0, pw, ph);
+  // bruma atmosférica: lo lejano pierde contraste hacia el piso
+  const g = c.createLinearGradient(0, 0, 0, ph);
+  g.addColorStop(0, 'rgba(255,225,235,0)');
+  g.addColorStop(1, 'rgba(255,225,235,.1)');
+  c.fillStyle = g;
+  c.fillRect(0, 0, pw, ph);
+  c.restore();
 }
 
 function drawLayer(ctx: CanvasRenderingContext2D, l: Layer, scroll: number) {
