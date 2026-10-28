@@ -51,7 +51,9 @@ export const OUTFIT_ITEMS: ShopItem[] = [
   o('skin', 'astro', 'Astronauta', 600, 'Casco de burbuja: huye hasta la luna.'),
   o('skin', 'robot', 'Robo-Novio', 700, 'Cero sentimientos, cero compromisos.'),
   o('skin', 'wizard', 'Mago', 700, 'Sombrero estrellado y barba de sabio.'),
+  o('skin', 'office', 'Ejecutivo', 700, 'Cabeza lisa, traje azul marino y maletín. Huye de la junta... y de la boda.'),
   o('skin', 'ninja', 'Ninja', 800, 'Sigiloso... hasta que vuela con champaña.'),
+  o('skin', 'crab', 'Novio Cangrejo', 800, 'Capucha roja, ojos saltones y pinzas listas.'),
 
   o('hat', 'none', 'Sin sombrero', 0, 'Pelo al viento.'),
   o('hat', 'cap', 'Gorra de recién casado', 150, 'Para huir con estilo deportivo.'),
@@ -83,11 +85,9 @@ export const OUTFIT_ITEMS: ShopItem[] = [
   o('pack', 'gold', 'Champaña de oro', 600, 'Reserva especial.'),
 ];
 
-export const VEHICLE_ITEMS: ShopItem[] = [
-  { id: 'veh:swan', vehicle: 'swan', name: 'Cisne Inflable', price: 400, desc: '' },
-  { id: 'veh:limo', vehicle: 'limo', name: 'Limusina Recién Casados', price: 900, desc: '' },
-  { id: 'veh:cupid', vehicle: 'cupid', name: 'Carroza de Cupido', price: 1500, desc: '' },
-];
+/** Los vehículos salen gratis de los regalos de boda; en la tienda solo se compran sus skins.
+ *  Precios que tuvieron antes (para reembolsar a quien ya los había comprado). */
+export const LEGACY_VEHICLE_PRICES: Record<string, number> = { 'veh:swan': 400, 'veh:limo': 900, 'veh:cupid': 1500 };
 
 /** Skins de vehículo: se compran con la cartera y se ponen al vehículo correspondiente */
 const vs = (vehicle: VehicleKind, key: string, name: string, price: number, desc: string): ShopItem => ({
@@ -107,6 +107,7 @@ export const VEHICLE_SKIN_ITEMS: ShopItem[] = [
   vs('limo', 'classic', 'Blanca de boda', 0, 'La limusina de serie.'),
   vs('limo', 'candy', 'Limusina chicle', 250, 'Dulce como el pastel.'),
   vs('limo', 'taxi', 'Taxi amarillo', 350, 'Para huir de la ciudad.'),
+  vs('limo', 'burger', 'Limo-hamburguesa', 500, 'Pan, carne, queso y ruedas. ¡Con todo!'),
   vs('limo', 'midnight', 'Limusina de medianoche', 450, 'Cristales oscuros, intenciones claras.'),
   vs('limo', 'gold', 'Limusina dorada', 600, 'La más brillante del salón.'),
   vs('cupid', 'classic', 'Concha azul', 0, 'La carroza de serie.'),
@@ -120,11 +121,10 @@ export const validVehicleSkin = (k: VehicleKind, key: unknown): key is string =>
   typeof key === 'string' && VEHICLE_SKIN_ITEMS.some((i) => i.vehicle === k && i.skinKey === key);
 export const DEFAULT_VEHICLE_SKINS: Record<VehicleKind, string> = { swan: 'classic', limo: 'classic', cupid: 'classic' };
 
-export const SHOP_ITEMS: ShopItem[] = [...VEHICLE_ITEMS, ...VEHICLE_SKIN_ITEMS, ...OUTFIT_ITEMS];
+export const SHOP_ITEMS: ShopItem[] = [...VEHICLE_SKIN_ITEMS, ...OUTFIT_ITEMS];
 export const ITEM_BY_ID: Record<string, ShopItem> = Object.fromEntries(SHOP_ITEMS.map((i) => [i.id, i]));
 
 export const itemsOfSlot = (slot: Slot) => OUTFIT_ITEMS.filter((i) => i.slot === slot);
-export const vehicleItem = (k: VehicleKind) => ITEM_BY_ID[`veh:${k}`];
 
 /** ¿Es válido este valor para esa ranura? (para sanear datos guardados) */
 export const validKey = (slot: Slot, key: unknown): key is string =>

@@ -30,7 +30,7 @@ const PINK_DARK = '#f27fa6';
 /* ------------------------------------------------------------------ */
 
 interface SwanPal { body: string; accent: string; accentDark: string; beak: string; seam: string; wing: string; wingFar: string; crown: string; heart: string }
-interface LimoPal { body: string; stripe: string; seat: string; bow: string; bowDark: string; sign: string; signText: string; glass: string }
+interface LimoPal { body: string; stripe: string; seat: string; bow: string; bowDark: string; sign: string; signText: string; glass: string; burger?: boolean }
 interface CupidPal { shell: string; rib: string; wing: string; wingLine: string; quiver: string; heart: string; edge: string; wheel: string }
 
 const SWAN_SKINS: Record<string, SwanPal> = {
@@ -44,6 +44,7 @@ const LIMO_SKINS: Record<string, LimoPal> = {
   classic: { body: WHITE, stripe: COLORS.gold, seat: COLORS.rose, bow: COLORS.rose, bowDark: COLORS.roseDark, sign: 'RECIÉN CASADOS', signText: COLORS.roseDark, glass: 'rgba(190,230,255,.75)' },
   candy: { body: '#ffc4dc', stripe: '#fffaf2', seat: '#ff7aa8', bow: '#fffaf2', bowDark: '#ff7aa8', sign: 'DULCE AMOR', signText: '#c2406f', glass: 'rgba(190,230,255,.75)' },
   taxi: { body: '#ffd21f', stripe: '#1d1b24', seat: '#3a3a48', bow: '#1d1b24', bowDark: '#fffaf2', sign: 'TAXI', signText: '#1d1b24', glass: 'rgba(190,230,255,.75)' },
+  burger: { body: '#e9a23b', stripe: '#6ccf4a', seat: '#6ccf4a', bow: '#e0453a', bowDark: '#a82a22', sign: '', signText: '', glass: 'rgba(190,230,255,.75)', burger: true },
   midnight: { body: '#3a3858', stripe: '#c9a8ff', seat: '#6b4fa8', bow: '#c9a8ff', bowDark: '#8a63d8', sign: 'MEDIANOCHE', signText: '#e8d9ff', glass: 'rgba(60,70,120,.85)' },
   gold: { body: '#ffe08a', stripe: '#fffaf2', seat: '#e9a82a', bow: '#e9a82a', bowDark: '#b87912', sign: 'ORO PURO', signText: '#8a5a0a', glass: 'rgba(190,230,255,.75)' },
 };
@@ -218,8 +219,7 @@ function wheel(ctx: CanvasRenderingContext2D, x: number, y: number, ang: number)
   circle(ctx, x, y, 3, COLORS.gold, 1.8);
 }
 
-function limoFront(ctx: CanvasRenderingContext2D, a: VehicleAnim, c: LimoPal) {
-  // carrocería
+function limoBodyPath(ctx: CanvasRenderingContext2D) {
   ctx.beginPath();
   ctx.moveTo(-54, 6);
   ctx.quadraticCurveTo(-56, -2, -48, -2);
@@ -232,18 +232,91 @@ function limoFront(ctx: CanvasRenderingContext2D, a: VehicleAnim, c: LimoPal) {
   ctx.lineTo(-48, 29);
   ctx.quadraticCurveTo(-56, 29, -56, 22);
   ctx.closePath();
-  ink(ctx, c.body, 3.2);
-  // franja y detalles
+}
+
+/** Carrocería de hamburguesa: pan, lechuga, queso, carne y pan de abajo */
+function burgerBody(ctx: CanvasRenderingContext2D, c: LimoPal) {
+  limoBodyPath(ctx);
+  ctx.save();
+  ctx.clip();
+  // pan de arriba con brillo y semillas de ajonjolí
+  ctx.fillStyle = c.body;
+  ctx.fillRect(-60, -6, 120, 17);
+  ctx.fillStyle = 'rgba(255,238,190,.55)';
+  ctx.beginPath();
+  ctx.ellipse(-8, 0, 40, 2.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff4d0';
+  for (const [x, y, r] of [[-44, 3, 0.4], [-32, 6, -0.5], [-18, 3, 0.3], [-4, 6.5, -0.2], [10, 3.5, 0.5], [26, 6, -0.4], [40, 5, 0.3]] as const) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(r);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 2.3, 1.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  // lechuga ondulada
   ctx.fillStyle = c.stripe;
-  ctx.fillRect(-55, 12, 110, 4);
+  ctx.beginPath();
+  ctx.moveTo(-60, 9);
+  for (let x = -60; x <= 60; x += 6) ctx.lineTo(x, 9 + (Math.round((x + 60) / 6) % 2 ? 4.5 : 0.5));
+  ctx.lineTo(60, 16);
+  ctx.lineTo(-60, 16);
+  ctx.closePath();
+  ctx.fill();
+  // queso derretido con gotas
+  ctx.fillStyle = '#ffd23f';
+  ctx.fillRect(-60, 14, 120, 3.2);
+  for (const x of [-38, -6, 22, 44]) {
+    ctx.beginPath();
+    ctx.moveTo(x - 4, 16.5);
+    ctx.lineTo(x + 4, 16.5);
+    ctx.lineTo(x, 23);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // carne
+  ctx.fillStyle = '#6b3a22';
+  ctx.fillRect(-60, 17, 120, 6);
+  ctx.fillStyle = '#4b2616';
+  for (const x of [-48, -26, -2, 18, 36]) ctx.fillRect(x, 19, 6, 1.6);
+  // pan de abajo
+  ctx.fillStyle = '#d8932f';
+  ctx.fillRect(-60, 23, 120, 10);
+  ctx.restore();
+  // contorno de toda la carrocería y líneas de separación
   ctx.strokeStyle = COLORS.ink;
   ctx.lineWidth = 1.6;
-  ctx.strokeRect(-55, 12, 110, 4);
-  // letrero (en la franja libre sobre las ruedas)
-  ctx.fillStyle = c.signText;
-  ctx.font = 'bold 6.5px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(c.sign, -15, 8.5);
+  for (const y of [9.5, 16.5, 23]) {
+    ctx.beginPath();
+    ctx.moveTo(-55, y);
+    ctx.lineTo(55, y);
+    ctx.stroke();
+  }
+  limoBodyPath(ctx);
+  ink(ctx, null, 3.2);
+}
+
+function limoFront(ctx: CanvasRenderingContext2D, a: VehicleAnim, c: LimoPal) {
+  // carrocería
+  if (c.burger) {
+    burgerBody(ctx, c);
+  } else {
+    limoBodyPath(ctx);
+    ink(ctx, c.body, 3.2);
+    // franja y detalles
+    ctx.fillStyle = c.stripe;
+    ctx.fillRect(-55, 12, 110, 4);
+    ctx.strokeStyle = COLORS.ink;
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(-55, 12, 110, 4);
+    // letrero (en la franja libre sobre las ruedas)
+    ctx.fillStyle = c.signText;
+    ctx.font = 'bold 6.5px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(c.sign, -15, 8.5);
+  }
   // faro y moño del capó
   circle(ctx, 52, 11, 5, '#fff3b0', 2);
   poly(ctx, [36, 0, 28, -6, 28, 6], c.bow, 2);
