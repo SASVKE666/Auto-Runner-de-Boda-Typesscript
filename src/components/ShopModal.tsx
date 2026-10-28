@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { VEHICLES } from '../game/constants';
+import { VEHICLES, type VehicleKind } from '../game/constants';
 import { drawGroom } from '../game/art/characters';
+import { vehicleSkinSwatch } from '../game/art/vehicles';
 import { setRenderScale } from '../game/art/core';
 import { buyItem, equipItem, isOwned } from '../game/shop';
 import {
@@ -10,6 +11,7 @@ import {
   SUIT_COLORS,
   PACK_COLORS,
   VEHICLE_ITEMS,
+  vehicleSkinsOf,
   itemsOfSlot,
   type Outfit,
   type ShopItem,
@@ -42,8 +44,8 @@ const GroomPreview: React.FC<{ outfit: Outfit }> = ({ outfit }) => {
       const t = now / 1000;
       ctx.clearRect(0, 0, 200, 230);
       ctx.save();
-      ctx.translate(100, 140 + Math.sin(t * 2.2) * 3);
-      ctx.scale(2, 2);
+      ctx.translate(100, 156 + Math.sin(t * 2.2) * 3);
+      ctx.scale(1.6, 1.6); // cabe también el sombrero de mago y las orejas del conejo
       drawGroom(ctx, 0, 0, {
         t,
         thrusting: false,
@@ -75,7 +77,7 @@ const Action: React.FC<{
   onEquip: () => void;
 }> = ({ item, save, equipped, onBuy, onEquip }) => {
   if (isOwned(item, save)) {
-    if (item.vehicle) return <span className="font-display text-sm text-emerald-700">✔ Comprado</span>;
+    if (item.vehicle && !item.skinKey) return <span className="font-display text-sm text-emerald-700">✔ Comprado</span>;
     return equipped ? (
       <span className="font-display text-sm text-emerald-700">✔ Puesto</span>
     ) : (
@@ -96,9 +98,61 @@ const Action: React.FC<{
   );
 };
 
+/** Muestras de skins de un vehículo, con comprar / ponérsela */
+const SkinPicker: React.FC<{
+  kind: VehicleKind;
+  save: SaveData;
+  vehicleOwned: boolean;
+  selected: string;
+  onSelect: (key: string) => void;
+  onBuy: (item: ShopItem) => void;
+  onEquip: (item: ShopItem) => void;
+}> = ({ kind, save, vehicleOwned, selected, onSelect, onBuy, onEquip }) => {
+  const skins = vehicleSkinsOf(kind);
+  const sel = skins.find((s) => s.skinKey === selected) ?? skins[0];
+  return (
+    <div className="mt-2 pt-2 border-t-2 border-dashed border-[#2a1420]/25" data-testid="skins">
+      <div className="text-[11px] font-semibold text-[#4a1230] mb-1">🎨 Skins</div>
+      <div className="flex gap-1.5 flex-wrap">
+        {skins.map((s) => {
+          const [a, b] = vehicleSkinSwatch(kind, s.skinKey!);
+          const on = s.skinKey === sel.skinKey;
+          const worn = save.vehicleSkins[kind] === s.skinKey;
+          return (
+            <button
+              key={s.id}
+              data-testid="vskin"
+              title={s.name}
+              aria-label={`${s.name}${worn ? ' (puesta)' : isOwned(s, save) ? ' (tuya)' : ''}`}
+              onClick={() => onSelect(s.skinKey!)}
+              className={`relative w-9 h-9 rounded-full border-[3px] overflow-hidden ${on ? 'border-rose-500 scale-110' : 'border-[#2a1420]'} transition`}
+              style={{ background: `linear-gradient(135deg, ${a} 50%, ${b} 50%)` }}
+            >
+              {worn && <span className="absolute inset-0 flex items-center justify-center text-[13px] font-black text-[#2a1420] drop-shadow-[0_0_2px_#fff]">✔</span>}
+              {!isOwned(s, save) && <span className="absolute -bottom-0.5 -right-0.5 text-[10px]">🔒</span>}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-1.5 flex items-center gap-2 flex-wrap min-h-[1.75rem]">
+        <span className="font-display text-[13px] text-[#2a1420]">{sel.name}</span>
+        {!vehicleOwned && !isOwned(sel, save) ? (
+          <span className="text-xs font-semibold text-rose-700" data-testid="skin-locked">
+            Compra el vehículo primero
+          </span>
+        ) : (
+          <Action item={sel} save={save} equipped={save.vehicleSkins[kind] === sel.skinKey} onBuy={() => onBuy(sel)} onEquip={() => onEquip(sel)} />
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const ShopModal: React.FC<Props> = ({ save, onClose }) => {
   const [tab, setTab] = useState<'atuendo' | 'vehiculos'>('atuendo');
-  const [slot, setSlot] = useState<Slot>('hat');
+  const [slot, setSlot] = useState<Slot>('skin');
+  // skin de vehículo que se está probando
+  const [tryingVSkin, setTryingVSkin] = useState<Partial<Record<VehicleKind, string>>>({});
   // lo que se está probando (aún sin comprar o sin ponerse)
   const [trying, setTrying] = useState<Partial<Outfit>>({});
   const [note, setNote] = useState<string | null>(null);
@@ -116,6 +170,7 @@ export const ShopModal: React.FC<Props> = ({ save, onClose }) => {
   const buy = (item: ShopItem) => {
     const res = buyItem(item.id);
     if (res.ok) {
+      if (item.vehicle && item.skinKey) setTryingVSkin((t) => ({ ...t, [item.vehicle as VehicleKind]: undefined }));
       setTrying((t) => {
         const n = { ...t };
         if (item.slot) delete n[item.slot];
@@ -125,6 +180,10 @@ export const ShopModal: React.FC<Props> = ({ save, onClose }) => {
     }
   };
   const equip = (item: ShopItem) => {
+    if (item.vehicle && item.skinKey && equipItem(item.id)) {
+      setTryingVSkin((t) => ({ ...t, [item.vehicle as VehicleKind]: undefined }));
+      return;
+    }
     if (equipItem(item.id) && item.slot) {
       setTrying((t) => {
         const n = { ...t };
@@ -134,6 +193,10 @@ export const ShopModal: React.FC<Props> = ({ save, onClose }) => {
     }
   };
 
+  // con un disfraz puesto solo cuenta el personaje y el color del jetpack
+  const costume = preview.skin !== 'novio';
+  const visibleSlots = costume ? SLOTS.filter((s) => s.slot === 'skin' || s.slot === 'pack') : SLOTS;
+  if (!visibleSlots.some((s) => s.slot === slot)) setSlot('skin');
   const slotItems = itemsOfSlot(slot);
   const selKey = preview[slot];
   const selItem = ITEM_BY_ID[`${slot}:${selKey}`];
@@ -171,7 +234,7 @@ export const ShopModal: React.FC<Props> = ({ save, onClose }) => {
                 }}
                 className={`font-display text-sm px-4 py-1.5 rounded-full border-[3px] border-[#2a1420] ${tab === t ? 'bg-amber-300 text-[#2a1420]' : 'bg-white/70 text-[#7a1f3d]'}`}
               >
-                {t === 'atuendo' ? '👔 Atuendo' : '🚗 Vehículos'}
+                {t === 'atuendo' ? '👔 Atuendo y personajes' : '🚗 Vehículos y skins'}
               </button>
             ))}
           </div>
@@ -201,7 +264,7 @@ export const ShopModal: React.FC<Props> = ({ save, onClose }) => {
 
               <div className="flex-1 min-w-0">
                 <div className="flex gap-1.5 flex-wrap mb-2">
-                  {SLOTS.map((s) => (
+                  {visibleSlots.map((s) => (
                     <button
                       key={s.slot}
                       onClick={() => setSlot(s.slot)}
@@ -211,6 +274,11 @@ export const ShopModal: React.FC<Props> = ({ save, onClose }) => {
                     </button>
                   ))}
                 </div>
+                {costume && (
+                  <p className="text-[11px] text-[#4a1230] mb-2" data-testid="costume-note">
+                    El disfraz reemplaza traje, sombrero, corbata y accesorios. Elige <b>El Novio</b> para volver a vestirlo a tu gusto.
+                  </p>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   {slotItems.map((it) => {
                     const owned = isOwned(it, save);
@@ -260,7 +328,7 @@ export const ShopModal: React.FC<Props> = ({ save, onClose }) => {
                 return (
                   <div key={it.id} className="flex gap-3 items-center rounded-2xl border-[3px] border-[#2a1420] bg-white/70 p-2.5" data-testid="vehicle">
                     <div className="shrink-0 rounded-xl bg-[#2a0b1d]/85 border-2 border-[#2a1420]">
-                      <VehicleIcon kind={k} locked={!owned} />
+                      <VehicleIcon kind={k} locked={!owned} skin={tryingVSkin[k] ?? save.vehicleSkins[k]} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-display text-[#2a1420] leading-tight">{d.name}</div>
@@ -275,6 +343,15 @@ export const ShopModal: React.FC<Props> = ({ save, onClose }) => {
                         <Action item={it} save={save} equipped={false} onBuy={() => buy(it)} onEquip={() => undefined} />
                         {owned && <span className="text-[10px] text-[#4a1230]/70">Usado {save.totals.kinds[k]} {save.totals.kinds[k] === 1 ? 'vez' : 'veces'}</span>}
                       </div>
+                      <SkinPicker
+                        kind={k}
+                        save={save}
+                        vehicleOwned={owned}
+                        selected={tryingVSkin[k] ?? save.vehicleSkins[k]}
+                        onSelect={(key) => setTryingVSkin((t) => ({ ...t, [k]: key }))}
+                        onBuy={buy}
+                        onEquip={equip}
+                      />
                     </div>
                   </div>
                 );

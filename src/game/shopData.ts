@@ -5,8 +5,9 @@
  */
 import type { VehicleKind } from './constants';
 
-export type Slot = 'hat' | 'suit' | 'tie' | 'face' | 'pack';
+export type Slot = 'skin' | 'hat' | 'suit' | 'tie' | 'face' | 'pack';
 export const SLOTS: { slot: Slot; label: string; icon: string }[] = [
+  { slot: 'skin', label: 'Personaje', icon: '🦸' },
   { slot: 'hat', label: 'Sombrero', icon: '🎩' },
   { slot: 'suit', label: 'Traje', icon: '🤵' },
   { slot: 'tie', label: 'Corbata', icon: '🎀' },
@@ -16,7 +17,7 @@ export const SLOTS: { slot: Slot; label: string; icon: string }[] = [
 
 /** Qué tiene puesto el novio en cada ranura (id del artículo sin el prefijo de la ranura) */
 export type Outfit = Record<Slot, string>;
-export const DEFAULT_OUTFIT: Outfit = { hat: 'none', suit: 'classic', tie: 'bow', face: 'none', pack: 'green' };
+export const DEFAULT_OUTFIT: Outfit = { skin: 'novio', hat: 'none', suit: 'classic', tie: 'bow', face: 'none', pack: 'green' };
 
 export interface ShopItem {
   /** id único; los de atuendo son `ranura:nombre`, los vehículos `veh:tipo` */
@@ -28,6 +29,8 @@ export interface ShopItem {
   /** id corto dentro de la ranura */
   key?: string;
   vehicle?: VehicleKind;
+  /** Si existe, el artículo es una skin de ese vehículo (y no el vehículo en sí) */
+  skinKey?: string;
 }
 
 const o = (slot: Slot, key: string, name: string, price: number, desc: string): ShopItem => ({
@@ -40,6 +43,16 @@ const o = (slot: Slot, key: string, name: string, price: number, desc: string): 
 });
 
 export const OUTFIT_ITEMS: ShopItem[] = [
+  o('skin', 'novio', 'El Novio', 0, 'El de siempre: frac, moño y jetpack de champaña.'),
+  o('skin', 'ghost', 'Fantasma de sábana', 500, 'Buuu. La novia no se asusta con nada.'),
+  o('skin', 'bunny', 'Conejo de peluche', 500, 'Orejas largas y cola de algodón.'),
+  o('skin', 'pirate', 'Pirata', 600, 'Tricornio, parche y rumbo a cualquier parte menos al altar.'),
+  o('skin', 'dino', 'Dinosaurio', 600, 'Disfraz de dino con cola y espinas.'),
+  o('skin', 'astro', 'Astronauta', 600, 'Casco de burbuja: huye hasta la luna.'),
+  o('skin', 'robot', 'Robo-Novio', 700, 'Cero sentimientos, cero compromisos.'),
+  o('skin', 'wizard', 'Mago', 700, 'Sombrero estrellado y barba de sabio.'),
+  o('skin', 'ninja', 'Ninja', 800, 'Sigiloso... hasta que vuela con champaña.'),
+
   o('hat', 'none', 'Sin sombrero', 0, 'Pelo al viento.'),
   o('hat', 'cap', 'Gorra de recién casado', 150, 'Para huir con estilo deportivo.'),
   o('hat', 'flowers', 'Corona de flores', 200, 'Por si la novia se ablanda.'),
@@ -76,7 +89,38 @@ export const VEHICLE_ITEMS: ShopItem[] = [
   { id: 'veh:cupid', vehicle: 'cupid', name: 'Carroza de Cupido', price: 1500, desc: '' },
 ];
 
-export const SHOP_ITEMS: ShopItem[] = [...VEHICLE_ITEMS, ...OUTFIT_ITEMS];
+/** Skins de vehículo: se compran con la cartera y se ponen al vehículo correspondiente */
+const vs = (vehicle: VehicleKind, key: string, name: string, price: number, desc: string): ShopItem => ({
+  id: `vskin:${vehicle}:${key}`,
+  vehicle,
+  skinKey: key,
+  name,
+  price,
+  desc,
+});
+export const VEHICLE_SKIN_ITEMS: ShopItem[] = [
+  vs('swan', 'classic', 'Blanco y rosa', 0, 'El cisne de serie.'),
+  vs('swan', 'bubblegum', 'Cisne chicle', 250, 'Rosa de feria.'),
+  vs('swan', 'ice', 'Cisne de hielo', 350, 'Frío por fuera, valiente por dentro.'),
+  vs('swan', 'midnight', 'Cisne de medianoche', 450, 'Elegante y misterioso.'),
+  vs('swan', 'gold', 'Cisne dorado', 600, 'Inflable de lujo.'),
+  vs('limo', 'classic', 'Blanca de boda', 0, 'La limusina de serie.'),
+  vs('limo', 'candy', 'Limusina chicle', 250, 'Dulce como el pastel.'),
+  vs('limo', 'taxi', 'Taxi amarillo', 350, 'Para huir de la ciudad.'),
+  vs('limo', 'midnight', 'Limusina de medianoche', 450, 'Cristales oscuros, intenciones claras.'),
+  vs('limo', 'gold', 'Limusina dorada', 600, 'La más brillante del salón.'),
+  vs('cupid', 'classic', 'Concha azul', 0, 'La carroza de serie.'),
+  vs('cupid', 'rose', 'Carroza rosa', 250, 'Color de rosas.'),
+  vs('cupid', 'jade', 'Carroza de jade', 350, 'Verde jade pulido.'),
+  vs('cupid', 'pumpkin', 'Carroza calabaza', 450, 'Cuento de hadas de otoño.'),
+  vs('cupid', 'gold', 'Carroza dorada', 600, 'Fulgor de oro puro.'),
+];
+export const vehicleSkinsOf = (k: VehicleKind) => VEHICLE_SKIN_ITEMS.filter((i) => i.vehicle === k);
+export const validVehicleSkin = (k: VehicleKind, key: unknown): key is string =>
+  typeof key === 'string' && VEHICLE_SKIN_ITEMS.some((i) => i.vehicle === k && i.skinKey === key);
+export const DEFAULT_VEHICLE_SKINS: Record<VehicleKind, string> = { swan: 'classic', limo: 'classic', cupid: 'classic' };
+
+export const SHOP_ITEMS: ShopItem[] = [...VEHICLE_ITEMS, ...VEHICLE_SKIN_ITEMS, ...OUTFIT_ITEMS];
 export const ITEM_BY_ID: Record<string, ShopItem> = Object.fromEntries(SHOP_ITEMS.map((i) => [i.id, i]));
 
 export const itemsOfSlot = (slot: Slot) => OUTFIT_ITEMS.filter((i) => i.slot === slot);

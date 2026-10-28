@@ -87,6 +87,7 @@ export interface Snapshot {
   bought: number;
   outfitBought: number;
   vehiclesOwned: number;
+  skinsOwned: number;
   wallet: number;
 }
 
@@ -100,6 +101,7 @@ export function liveSnapshot(save: SaveData, run: RunStats, committed: boolean):
     bought: Object.keys(save.owned).length,
     outfitBought: Object.keys(save.owned).filter((id) => !id.startsWith('veh:')).length,
     vehiclesOwned: Object.keys(save.owned).filter((id) => id.startsWith('veh:')).length,
+    skinsOwned: Object.keys(save.owned).filter((id) => id.startsWith('skin:') || id.startsWith('vskin:')).length,
     // la partida en curso aún no se ha guardado en la cartera
     wallet: save.wallet + (committed ? 0 : run.rings),
   };
@@ -162,6 +164,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'shop1', group: 'Tienda', icon: '🛍️', name: 'Primera compra', desc: 'Compra algo en la tienda.', target: 1, value: (s) => s.bought },
   { id: 'saver', group: 'Tienda', icon: '🏦', name: 'Ahorrador', desc: 'Junta 1000 anillos en tu cartera.', target: 1000, unit: 'anillos', value: (s) => s.wallet },
   { id: 'style6', group: 'Tienda', icon: '💃', name: 'Novio de revista', desc: 'Compra 6 prendas o accesorios.', target: 6, unit: 'prendas', value: (s) => s.outfitBought },
+  { id: 'disguise', group: 'Tienda', icon: '🎭', name: 'Cambio de look', desc: 'Compra una skin de personaje o de vehículo.', target: 1, value: (s) => s.skinsOwned },
   { id: 'veh3', group: 'Tienda', icon: '🚘', name: 'Dueño del garaje', desc: 'Compra los 3 vehículos.', target: 3, unit: 'vehículos', value: (s) => s.vehiclesOwned },
 
   // --- Constancia ---
