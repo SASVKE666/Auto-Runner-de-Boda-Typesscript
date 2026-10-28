@@ -1,8 +1,19 @@
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
- * Sonidos arcade y música de boda generados con Web Audio API (100% nativo, sin archivos).
+ * Sonidos arcade generados con Web Audio API. La música del gameplay es una pista
+ * (public/assets/music/gameplay.mp3) que suena en bucle sin cortes; si no carga, se usa
+ * la música de boda sintetizada de antes.
  */
+
+/** Pista del gameplay: suena completa una vez y luego repite el tramo [LOOP_START, LOOP_END).
+ *  Ambos puntos caen en un compás del tempo (140 bpm) y el final lleva un fundido cruzado
+ *  ya horneado en el archivo, así que el salto no se oye. Equivale a: cuando quedan ~18 s,
+ *  vuelve al segundo ~16. */
+const MUSIC_URL = `${import.meta.env.BASE_URL}assets/music/gameplay.mp3`;
+const LOOP_START = 16.161134;
+const LOOP_END = 180.732698;
+const MUSIC_VOLUME = 0.5;
 
 const STEP_DUR = 60 / 132 / 2; // corchea a 132 bpm
 
@@ -30,6 +41,11 @@ class SoundManager {
   private musicTimer: ReturnType<typeof setInterval> | null = null;
   private nextNoteTime = 0;
   private step = 0;
+  /** Música de pista (archivo) */
+  private musicBuffer: AudioBuffer | null = null;
+  private musicLoad: Promise<AudioBuffer | null> | null = null;
+  private musicSource: AudioBufferSourceNode | null = null;
+  private musicWanted = false;
 
   private thrustGain: GainNode | null = null;
   private thrustWanted = false;
@@ -195,27 +211,81 @@ class SoundManager {
 
   /* ---------------- Música ---------------- */
 
+  /** Descarga y decodifica la pista una sola vez (null si falla) */
+  private loadMusic(): Promise<AudioBuffer | null> {
+    if (this.musicBuffer) return Promise.resolve(this.musicBuffer);
+    if (!this.musicLoad) {
+      const ctx = this.ctx;
+      this.musicLoad = !ctx
+        ? Promise.resolve(null)
+        : fetch(MUSIC_URL)
+            .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+            .then(
+              (data) =>
+                new Promise<AudioBuffer>((resolve, reject) => {
+                  // Safari antiguo solo admite la versión con callbacks
+                  const p = ctx.decodeAudioData(data, resolve, reject);
+                  if (p && typeof p.then === 'function') p.then(resolve, reject);
+                })
+            )
+            .then((buf) => (this.musicBuffer = buf))
+            .catch(() => {
+              this.musicLoad = null; // permitir reintentar la próxima vez
+              return null;
+            });
+    }
+    return this.musicLoad;
+  }
+
   startMusic() {
-    if (this.musicTimer !== null) return;
+    if (this.musicWanted) return;
     this.initCtx();
     if (!this.ctx || !this.master) return;
+    this.musicWanted = true;
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = 0.55;
+    this.musicGain.gain.value = MUSIC_VOLUME;
     this.musicGain.connect(this.master);
-    this.nextNoteTime = this.ctx.currentTime + 0.1;
-    this.step = 0;
-    this.musicTimer = setInterval(() => this.scheduleMusic(), 90);
+    const gain = this.musicGain;
+    void this.loadMusic().then((buf) => {
+      // Si ya pararon la música o empezó otra, no hacer nada
+      if (!this.musicWanted || this.musicGain !== gain || !this.ctx) return;
+      if (buf) {
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        src.loopStart = LOOP_START;
+        src.loopEnd = Math.min(LOOP_END, buf.duration);
+        src.connect(gain);
+        src.start(this.ctx.currentTime + 0.05, 0);
+        this.musicSource = src;
+      } else if (this.musicTimer === null) {
+        // sin pista: música de boda sintetizada
+        this.nextNoteTime = this.ctx.currentTime + 0.1;
+        this.step = 0;
+        this.musicTimer = setInterval(() => this.scheduleMusic(), 90);
+      }
+    });
   }
 
   stopMusic() {
+    this.musicWanted = false;
     if (this.musicTimer !== null) {
       clearInterval(this.musicTimer);
       this.musicTimer = null;
     }
+    const src = this.musicSource;
+    this.musicSource = null;
     if (this.musicGain && this.ctx) {
       const g = this.musicGain;
       g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.08);
-      setTimeout(() => g.disconnect(), 600);
+      setTimeout(() => {
+        try {
+          src?.stop();
+        } catch {
+          /* ya había terminado */
+        }
+        g.disconnect();
+      }, 600);
       this.musicGain = null;
     }
   }
