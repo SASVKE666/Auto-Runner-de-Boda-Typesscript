@@ -4,7 +4,7 @@
  * (modo privado, pruebas en Node): en ese caso vive solo en memoria.
  */
 import type { VehicleKind } from './constants';
-import { DEFAULT_OUTFIT, SLOTS, validKey, ITEM_BY_ID, type Outfit } from './shopData';
+import { DEFAULT_OUTFIT, DEFAULT_VEHICLE_SKINS, SLOTS, validKey, validVehicleSkin, ITEM_BY_ID, type Outfit } from './shopData';
 
 const KEY = 'novio_en_fuga_save_v1';
 const OLD_BEST_KEY = 'novio_en_fuga_best'; // versión anterior: solo guardaba la mejor distancia
@@ -52,6 +52,8 @@ export interface SaveData {
   owned: Record<string, number>;
   /** Atuendo puesto */
   outfit: Outfit;
+  /** Skin puesta a cada vehículo */
+  vehicleSkins: Record<VehicleKind, string>;
 }
 
 export function blankTotals(): Totals {
@@ -67,7 +69,7 @@ export function blankRecords(): Records {
 }
 
 export function blankSave(): SaveData {
-  return { version: 1, best: 0, totals: blankTotals(), records: blankRecords(), unlocked: {}, wallet: 0, owned: {}, outfit: { ...DEFAULT_OUTFIT } };
+  return { version: 1, best: 0, totals: blankTotals(), records: blankRecords(), unlocked: {}, wallet: 0, owned: {}, outfit: { ...DEFAULT_OUTFIT }, vehicleSkins: { ...DEFAULT_VEHICLE_SKINS } };
 }
 
 const num = (v: unknown) => (typeof v === 'number' && isFinite(v) && v >= 0 ? v : 0);
@@ -114,6 +116,10 @@ function sanitize(raw: unknown): SaveData {
       const item = ITEM_BY_ID[`${slot}:${key}`];
       if (item.price === 0 || out.owned[item.id]) out.outfit[slot] = key;
     }
+  }
+  for (const k of Object.keys(out.vehicleSkins) as VehicleKind[]) {
+    const key = (r.vehicleSkins as Partial<Record<VehicleKind, string>> | undefined)?.[k];
+    if (validVehicleSkin(k, key) && (key === 'classic' || out.owned[`vskin:${k}:${key}`])) out.vehicleSkins[k] = key;
   }
   return out;
 }

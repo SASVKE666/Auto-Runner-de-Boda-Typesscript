@@ -1672,9 +1672,10 @@ export class Game {
     if (v.kind === 'cupid') ctx.scale(1, v.flip); // la carroza se voltea con la gravedad
     ctx.rotate(vehicleTilt(v.kind, anim));
     ctx.translate(-GROOM_X, -this.cy);
-    drawVehicleBack(ctx, v.kind, GROOM_X, this.cy, anim);
+    const vskin = getSave().vehicleSkins[v.kind];
+    drawVehicleBack(ctx, v.kind, GROOM_X, this.cy, anim, vskin);
     drawGroom(ctx, GROOM_X + d.riderX, this.cy + d.riderY, { ...pose, rider: true, thrusting: false, grounded: false });
-    drawVehicleFront(ctx, v.kind, GROOM_X, this.cy, anim);
+    drawVehicleFront(ctx, v.kind, GROOM_X, this.cy, anim, vskin);
     ctx.restore();
   }
 
@@ -1881,7 +1882,7 @@ export class Game {
     const iy = 92;
     if (this.vehicle) {
       rrect(ctx, 10, iy - 24, 84, 48, 14, 'rgba(42,20,32,.6)', 2.6);
-      drawVehicleIcon(ctx, this.vehicle.kind, 52, iy + 4, 56, this.t);
+      drawVehicleIcon(ctx, this.vehicle.kind, 52, iy + 4, 56, this.t, getSave().vehicleSkins[this.vehicle.kind]);
       ix += 92;
     }
     const bar = (type: PickupType, frac2: number) => {

@@ -5,6 +5,7 @@
  */
 import { COLORS } from '../constants';
 import { circle, clamp, drawHeart, ellipse, ink, poly, rrect } from './core';
+import { COSTUMES } from './costumes';
 import { DEFAULT_OUTFIT, PACK_COLORS, SUIT_COLORS, type Outfit } from '../shopData';
 
 /** Colores del novio: coinciden con el personaje del video de intro (piel amarilla, ojos morados) */
@@ -170,7 +171,12 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
   const outfit = p.outfit ?? DEFAULT_OUTFIT;
   const suit = SUIT_COLORS[outfit.suit] ?? SUIT_COLORS.classic;
   const pack = PACK_COLORS[outfit.pack] ?? PACK_COLORS.green;
-  const TUX = suit.main;
+  // un disfraz (skin de personaje) reemplaza traje, cabello, sombrero y accesorios
+  const cos = outfit.skin && outfit.skin !== 'novio' ? COSTUMES[outfit.skin] : undefined;
+  const TUX = cos ? cos.main : suit.main;
+  const handCol = cos ? cos.hand : COLORS.cream;
+  const shoeCol = cos ? cos.shoe : '#1b1320';
+  const cctx = { t: p.t, fear: p.fear, caught: !!p.caught };
   const { t, grounded, thrusting, fear } = p;
   const run = grounded ? Math.sin(t * 17) : 0;
   const lean = p.rider
@@ -212,6 +218,8 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
     ctx.restore();
   }
 
+  cos?.back?.(ctx, cctx);
+
   // --- Brazo trasero ---
   let backArm: number;
   let frontArm: number;
@@ -232,7 +240,7 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
     backArm = -1.1;
     frontArm = -1.3 + Math.sin(t * 9) * 0.04;
   }
-  limb(ctx, -3, -12, backArm, 18, 8, TUX, COLORS.cream);
+  limb(ctx, -3, -12, backArm, 18, 8, TUX, handCol);
 
   // --- Piernas ---
   let legA: number;
@@ -254,48 +262,55 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
     legA = 1.2;
     legB = 1.4;
   }
-  for (const a of [legB, legA]) {
+  for (const a of cos?.noLegs ? [] : [legB, legA]) {
     ctx.save();
     ctx.translate(-2, 14);
     ctx.rotate(a);
     rrect(ctx, -4.8, -2, 9.6, 22, 4.5, TUX, 2.5);
-    ellipse(ctx, 3.5, 23, 8.5, 4.6, '#1b1320', 2.5);
-    ellipse(ctx, 1, 21, 5, 2.6, COLORS.cream, 0);
+    ellipse(ctx, 3.5, 23, 8.5, 4.6, shoeCol, 2.5);
+    if (!cos) ellipse(ctx, 1, 21, 5, 2.6, COLORS.cream, 0);
     ctx.restore();
   }
 
   // --- Torso: frac negro ---
   poly(ctx, [-14, 2, -29, 22, -9, 18], TUX, 2.5); // faldones
   rrect(ctx, -14, -19, 28, 36, 9, TUX, 3);
-  rrect(ctx, 2.5, -17.5, 10.5, 24, 4, COLORS.white, 2); // camisa
-  ctx.beginPath();
-  ctx.moveTo(2.5, -17);
-  ctx.lineTo(6.5, 3);
-  ink(ctx, null, 2.2);
-  circle(ctx, 9.5, -8, 1.3, COLORS.ink, 0);
-  circle(ctx, 9.5, -2, 1.3, COLORS.ink, 0);
-  rrect(ctx, -14, 6, 28, 7, 2, suit.sash, 2.5); // faja
-  // flor en la solapa
-  circle(ctx, -1, -8, 4, COLORS.white, 2);
-  circle(ctx, -1, -8, 1.6, '#e7d9c4', 0);
+  if (!cos || cos.shirt) {
+    rrect(ctx, 2.5, -17.5, 10.5, 24, 4, COLORS.white, 2); // camisa
+    ctx.beginPath();
+    ctx.moveTo(2.5, -17);
+    ctx.lineTo(6.5, 3);
+    ink(ctx, null, 2.2);
+    circle(ctx, 9.5, -8, 1.3, COLORS.ink, 0);
+    circle(ctx, 9.5, -2, 1.3, COLORS.ink, 0);
+  }
+  rrect(ctx, -14, 6, 28, 7, 2, cos ? cos.sash : suit.sash, 2.5); // faja
+  if (!cos) {
+    // flor en la solapa
+    circle(ctx, -1, -8, 4, COLORS.white, 2);
+    circle(ctx, -1, -8, 1.6, '#e7d9c4', 0);
+  }
+  cos?.body?.(ctx, cctx);
 
   // --- Cabeza ---
-  circle(ctx, 6, -33, 15, GROOM_SKIN, 3);
-  ellipse(ctx, -7.5, -32, 3.6, 4.6, GROOM_SKIN_SHADE, 2.2); // oreja
+  circle(ctx, 6, -33, 15, cos ? cos.skin : GROOM_SKIN, 3);
+  ellipse(ctx, -7.5, -32, 3.6, 4.6, cos ? cos.shade : GROOM_SKIN_SHADE, 2.2); // oreja
   // cabello
-  ctx.beginPath();
-  ctx.moveTo(-9.5, -33);
-  ctx.bezierCurveTo(-13, -50, 2, -57, 13, -52);
-  ctx.bezierCurveTo(20, -50, 22, -43, 21, -39);
-  ctx.bezierCurveTo(15, -45, 9, -42, 6, -38);
-  ctx.bezierCurveTo(2, -37, -2, -41, -4, -34);
-  ctx.closePath();
-  ink(ctx, COLORS.hair, 3);
-  // remolino
-  ctx.beginPath();
-  ctx.moveTo(1, -52);
-  ctx.quadraticCurveTo(4, -60, 11, -56);
-  ink(ctx, null, 2.6, COLORS.ink);
+  if (!cos || cos.hair) {
+    ctx.beginPath();
+    ctx.moveTo(-9.5, -33);
+    ctx.bezierCurveTo(-13, -50, 2, -57, 13, -52);
+    ctx.bezierCurveTo(20, -50, 22, -43, 21, -39);
+    ctx.bezierCurveTo(15, -45, 9, -42, 6, -38);
+    ctx.bezierCurveTo(2, -37, -2, -41, -4, -34);
+    ctx.closePath();
+    ink(ctx, COLORS.hair, 3);
+    // remolino
+    ctx.beginPath();
+    ctx.moveTo(1, -52);
+    ctx.quadraticCurveTo(4, -60, 11, -56);
+    ink(ctx, null, 2.6, COLORS.ink);
+  }
   // ojo
   ellipse(ctx, 13, -34, 5.3, 6.5, COLORS.white, 2.2);
   circle(ctx, 14.8, -33.6, 3.4, GROOM_IRIS, 0);
@@ -332,11 +347,17 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
     ink(ctx, '#7fd0ff', 1.8);
   }
 
-  drawFace(ctx, outfit.face);
-  drawHat(ctx, outfit.hat);
+  if (cos) {
+    cos.head?.(ctx, cctx);
+  } else {
+    drawFace(ctx, outfit.face);
+    drawHat(ctx, outfit.hat);
+  }
 
   // corbata o moño (sobre el cuello, por delante de la cabeza)
-  if (outfit.tie === 'tie') {
+  if (cos) {
+    // los disfraces no llevan corbata
+  } else if (outfit.tie === 'tie') {
     poly(ctx, [4, -17, 12, -17, 11, -13, 5, -13], '#c92c58', 2.2);
     poly(ctx, [5, -13, 11, -13, 14, 3, 8, 8, 2, 3], '#e63e6d', 2.4);
   } else {
@@ -348,7 +369,7 @@ export function drawGroom(ctx: CanvasRenderingContext2D, x: number, y: number, p
   }
 
   // --- Brazo delantero ---
-  limb(ctx, 6, -11, frontArm, 18, 8, TUX, COLORS.cream);
+  limb(ctx, 6, -11, frontArm, 18, 8, TUX, handCol);
 
   // Estrellas de aturdimiento
   if (p.stunned) {

@@ -26,10 +26,61 @@ const PINK = '#ffb3cc';
 const PINK_DARK = '#f27fa6';
 
 /* ------------------------------------------------------------------ */
+/* Paletas (skins)                                                     */
+/* ------------------------------------------------------------------ */
+
+interface SwanPal { body: string; accent: string; accentDark: string; beak: string; seam: string; wing: string; wingFar: string; crown: string; heart: string }
+interface LimoPal { body: string; stripe: string; seat: string; bow: string; bowDark: string; sign: string; signText: string; glass: string }
+interface CupidPal { shell: string; rib: string; wing: string; wingLine: string; quiver: string; heart: string; edge: string; wheel: string }
+
+const SWAN_SKINS: Record<string, SwanPal> = {
+  classic: { body: WHITE, accent: PINK, accentDark: PINK_DARK, beak: '#ffa84a', seam: '#f2cfdd', wing: '#f5c3d4', wingFar: '#d9638c', crown: COLORS.gold, heart: COLORS.rose },
+  bubblegum: { body: '#ffd1e3', accent: '#ff6fa5', accentDark: '#e0457f', beak: '#ffd24a', seam: '#f7a8c6', wing: '#ff9cc0', wingFar: '#b82f62', crown: COLORS.gold, heart: '#fffaf2' },
+  ice: { body: '#eaf8ff', accent: '#8fd3f4', accentDark: '#4fa9d8', beak: '#ffb35a', seam: '#bfe3f3', wing: '#a8d8ee', wingFar: '#2f84b3', crown: '#fffaf2', heart: '#4fa9d8' },
+  midnight: { body: '#4a4880', accent: '#25234d', accentDark: '#1a1938', beak: '#ffd24a', seam: '#6a68a8', wing: '#7573c4', wingFar: '#8a88dc', crown: COLORS.gold, heart: '#ffd24a' },
+  gold: { body: '#ffe27a', accent: '#e9a82a', accentDark: '#b87912', beak: '#ff8a3d', seam: '#f0c24a', wing: '#e9b83a', wingFar: '#8a5a0a', crown: '#fffaf2', heart: '#fffaf2' },
+};
+const LIMO_SKINS: Record<string, LimoPal> = {
+  classic: { body: WHITE, stripe: COLORS.gold, seat: COLORS.rose, bow: COLORS.rose, bowDark: COLORS.roseDark, sign: 'RECIÉN CASADOS', signText: COLORS.roseDark, glass: 'rgba(190,230,255,.75)' },
+  candy: { body: '#ffc4dc', stripe: '#fffaf2', seat: '#ff7aa8', bow: '#fffaf2', bowDark: '#ff7aa8', sign: 'DULCE AMOR', signText: '#c2406f', glass: 'rgba(190,230,255,.75)' },
+  taxi: { body: '#ffd21f', stripe: '#1d1b24', seat: '#3a3a48', bow: '#1d1b24', bowDark: '#fffaf2', sign: 'TAXI', signText: '#1d1b24', glass: 'rgba(190,230,255,.75)' },
+  midnight: { body: '#3a3858', stripe: '#c9a8ff', seat: '#6b4fa8', bow: '#c9a8ff', bowDark: '#8a63d8', sign: 'MEDIANOCHE', signText: '#e8d9ff', glass: 'rgba(60,70,120,.85)' },
+  gold: { body: '#ffe08a', stripe: '#fffaf2', seat: '#e9a82a', bow: '#e9a82a', bowDark: '#b87912', sign: 'ORO PURO', signText: '#8a5a0a', glass: 'rgba(190,230,255,.75)' },
+};
+const CUPID_SKINS: Record<string, CupidPal> = {
+  classic: { shell: '#9bd7ff', rib: '#6cb7ee', wing: WHITE, wingLine: '#cfe6f5', quiver: COLORS.goldDark, heart: COLORS.rose, edge: COLORS.gold, wheel: COLORS.gold },
+  rose: { shell: '#ffb3cc', rib: '#f27fa6', wing: WHITE, wingLine: '#f5c3d4', quiver: COLORS.goldDark, heart: '#fffaf2', edge: COLORS.gold, wheel: COLORS.gold },
+  jade: { shell: '#8fe3c0', rib: '#46b88c', wing: '#e9fff6', wingLine: '#a6e3c8', quiver: '#2f8f6a', heart: COLORS.rose, edge: COLORS.gold, wheel: COLORS.gold },
+  pumpkin: { shell: '#ffa24d', rib: '#e4731a', wing: '#fff0d6', wingLine: '#ffcf8f', quiver: '#5a2f95', heart: '#fffaf2', edge: '#6a3fb0', wheel: '#7a4cc2' },
+  gold: { shell: '#ffe27a', rib: '#e9a82a', wing: '#fffaf2', wingLine: '#f0d27a', quiver: '#b87912', heart: COLORS.rose, edge: '#fffaf2', wheel: '#e9a82a' },
+};
+
+/** Dos colores representativos de una skin (para las muestras de la tienda) */
+export function vehicleSkinSwatch(kind: VehicleKind, key: string): [string, string] {
+  if (kind === 'swan') {
+    const c = SWAN_SKINS[key] ?? SWAN_SKINS.classic;
+    return [c.body, c.accent];
+  }
+  if (kind === 'limo') {
+    const c = LIMO_SKINS[key] ?? LIMO_SKINS.classic;
+    return [c.body, c.stripe];
+  }
+  const c = CUPID_SKINS[key] ?? CUPID_SKINS.classic;
+  return [c.shell, c.rib];
+}
+
+/** Ids de skin disponibles para cada vehículo */
+export const VEHICLE_SKIN_KEYS: Record<VehicleKind, string[]> = {
+  swan: Object.keys(SWAN_SKINS),
+  limo: Object.keys(LIMO_SKINS),
+  cupid: Object.keys(CUPID_SKINS),
+};
+
+/* ------------------------------------------------------------------ */
 /* Cisne inflable                                                      */
 /* ------------------------------------------------------------------ */
 
-function swanWing(ctx: CanvasRenderingContext2D, a: VehicleAnim, far: boolean) {
+function swanWing(ctx: CanvasRenderingContext2D, a: VehicleAnim, far: boolean, c: SwanPal) {
   // 1 = recién aleteó (alas arriba) -> baja hasta reposar
   const ang = (far ? 0.25 : 0.1) + (a.pulse > 0 ? -1.15 * a.pulse : 0) + Math.sin(a.t * 6 + (far ? 1.3 : 0)) * 0.05;
   ctx.save();
@@ -41,8 +92,8 @@ function swanWing(ctx: CanvasRenderingContext2D, a: VehicleAnim, far: boolean) {
   ctx.bezierCurveTo(-38, -10, -30, -6, -22, 0);
   ctx.bezierCurveTo(-30, 4, -24, 8, -12, 8);
   ctx.closePath();
-  ink(ctx, far ? PINK_DARK : WHITE, 3);
-  ctx.strokeStyle = far ? '#d9638c' : '#f5c3d4';
+  ink(ctx, far ? c.accentDark : c.body, 3);
+  ctx.strokeStyle = far ? c.wingFar : c.wing;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(-12, -2);
@@ -53,13 +104,13 @@ function swanWing(ctx: CanvasRenderingContext2D, a: VehicleAnim, far: boolean) {
   ctx.restore();
 }
 
-function swanBack(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
-  swanWing(ctx, a, true);
+function swanBack(ctx: CanvasRenderingContext2D, a: VehicleAnim, c: SwanPal) {
+  swanWing(ctx, a, true, c);
   // cola
-  poly(ctx, [-30, 12, -48, 0, -44, 12, -50, 18, -34, 24], PINK, 3);
+  poly(ctx, [-30, 12, -48, 0, -44, 12, -50, 18, -34, 24], c.accent, 3);
 }
 
-function swanFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
+function swanFront(ctx: CanvasRenderingContext2D, a: VehicleAnim, c: SwanPal) {
   // cuello (trazo grueso con contorno)
   const neck = () => {
     ctx.beginPath();
@@ -73,12 +124,12 @@ function swanFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
   ctx.stroke();
   neck();
   ctx.lineWidth = 11;
-  ctx.strokeStyle = WHITE;
+  ctx.strokeStyle = c.body;
   ctx.stroke();
   // cuerpo inflable
-  ellipse(ctx, -2, 16, 35, 18, WHITE, 3.2);
+  ellipse(ctx, -2, 16, 35, 18, c.body, 3.2);
   // costuras y brillo
-  ctx.strokeStyle = '#f2cfdd';
+  ctx.strokeStyle = c.seam;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.ellipse(-2, 16, 24, 11, 0, Math.PI * 0.15, Math.PI * 0.85);
@@ -93,23 +144,23 @@ function swanFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
   ctx.beginPath();
   ctx.ellipse(-2, 16, 35, 18, 0, 0, Math.PI * 2);
   ctx.clip();
-  ctx.fillStyle = PINK;
+  ctx.fillStyle = c.accent;
   ctx.fillRect(-40, 21, 80, 14);
   ctx.restore();
   ellipse(ctx, -2, 16, 35, 18, null, 3.2);
   // válvula de aire
   rrect(ctx, -22, 0, 7, 5, 2, COLORS.gold, 2);
   // corazón
-  drawHeart(ctx, 14, 19, 8, COLORS.rose, 2.2);
+  drawHeart(ctx, 14, 19, 8, c.heart, 2.2);
   // cabeza
-  circle(ctx, 31, -27, 11, WHITE, 3);
-  poly(ctx, [39, -31, 52, -25, 39, -21], '#ffa84a', 2.6);
+  circle(ctx, 31, -27, 11, c.body, 3);
+  poly(ctx, [39, -31, 52, -25, 39, -21], c.beak, 2.6);
   circle(ctx, 34, -30, 2.4, COLORS.ink, 0);
   circle(ctx, 34.8, -30.8, 0.8, COLORS.white, 0);
   ellipse(ctx, 30, -23, 3.4, 2, 'rgba(255,90,130,.55)', 0);
   // coronita
-  poly(ctx, [24, -37, 26, -44, 29, -38, 32, -45, 35, -38, 38, -44, 38, -37], COLORS.gold, 2);
-  swanWing(ctx, a, false);
+  poly(ctx, [24, -37, 26, -44, 29, -38, 32, -45, 35, -38, 38, -44, 38, -37], c.crown, 2);
+  swanWing(ctx, a, false, c);
 }
 
 /* ------------------------------------------------------------------ */
@@ -126,7 +177,7 @@ function can(ctx: CanvasRenderingContext2D, x: number, y: number, rot: number) {
   ctx.restore();
 }
 
-function limoBack(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
+function limoBack(ctx: CanvasRenderingContext2D, a: VehicleAnim, c: LimoPal) {
   // latas colgando del parachoques
   const swing = Math.sin(a.t * 9) * 0.25 + (a.grounded ? 0 : -0.5);
   const ends: [number, number][] = [];
@@ -145,7 +196,7 @@ function limoBack(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
   }
   ends.forEach(([ex, ey], i) => can(ctx, ex, ey + 3, i * 0.6 + Math.sin(a.t * 8 + i) * 0.4));
   // respaldo del asiento trasero
-  rrect(ctx, -34, -18, 13, 26, 5, COLORS.rose, 3);
+  rrect(ctx, -34, -18, 13, 26, 5, c.seat, 3);
 }
 
 function wheel(ctx: CanvasRenderingContext2D, x: number, y: number, ang: number) {
@@ -167,7 +218,7 @@ function wheel(ctx: CanvasRenderingContext2D, x: number, y: number, ang: number)
   circle(ctx, x, y, 3, COLORS.gold, 1.8);
 }
 
-function limoFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
+function limoFront(ctx: CanvasRenderingContext2D, a: VehicleAnim, c: LimoPal) {
   // carrocería
   ctx.beginPath();
   ctx.moveTo(-54, 6);
@@ -181,23 +232,23 @@ function limoFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
   ctx.lineTo(-48, 29);
   ctx.quadraticCurveTo(-56, 29, -56, 22);
   ctx.closePath();
-  ink(ctx, WHITE, 3.2);
-  // franja dorada y detalles
-  ctx.fillStyle = COLORS.gold;
+  ink(ctx, c.body, 3.2);
+  // franja y detalles
+  ctx.fillStyle = c.stripe;
   ctx.fillRect(-55, 12, 110, 4);
   ctx.strokeStyle = COLORS.ink;
   ctx.lineWidth = 1.6;
   ctx.strokeRect(-55, 12, 110, 4);
   // letrero (en la franja libre sobre las ruedas)
-  ctx.fillStyle = COLORS.roseDark;
+  ctx.fillStyle = c.signText;
   ctx.font = 'bold 6.5px system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('RECIÉN CASADOS', -15, 8.5);
+  ctx.fillText(c.sign, -15, 8.5);
   // faro y moño del capó
   circle(ctx, 52, 11, 5, '#fff3b0', 2);
-  poly(ctx, [36, 0, 28, -6, 28, 6], COLORS.rose, 2);
-  poly(ctx, [36, 0, 44, -6, 44, 6], COLORS.rose, 2);
-  circle(ctx, 36, 0, 2.6, COLORS.roseDark, 1.6);
+  poly(ctx, [36, 0, 28, -6, 28, 6], c.bow, 2);
+  poly(ctx, [36, 0, 44, -6, 44, 6], c.bow, 2);
+  circle(ctx, 36, 0, 2.6, c.bowDark, 1.6);
   // parabrisas
   ctx.beginPath();
   ctx.moveTo(14, -2);
@@ -205,7 +256,7 @@ function limoFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
   ctx.lineTo(27, -22);
   ctx.lineTo(27, -2);
   ctx.closePath();
-  ink(ctx, 'rgba(190,230,255,.75)', 2.6);
+  ink(ctx, c.glass, 2.6);
   ctx.strokeStyle = 'rgba(255,255,255,.9)';
   ctx.lineWidth = 1.6;
   ctx.beginPath();
@@ -220,7 +271,7 @@ function limoFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
 /* Carroza de Cupido                                                   */
 /* ------------------------------------------------------------------ */
 
-function featherWing(ctx: CanvasRenderingContext2D, flapA: number, scale = 1) {
+function featherWing(ctx: CanvasRenderingContext2D, flapA: number, scale: number, c: CupidPal) {
   ctx.save();
   ctx.rotate(flapA);
   ctx.scale(scale, scale);
@@ -231,8 +282,8 @@ function featherWing(ctx: CanvasRenderingContext2D, flapA: number, scale = 1) {
   ctx.bezierCurveTo(-46, -4, -40, 2, -30, 2);
   ctx.bezierCurveTo(-34, 8, -26, 12, -14, 10);
   ctx.closePath();
-  ink(ctx, WHITE, 3);
-  ctx.strokeStyle = '#cfe6f5';
+  ink(ctx, c.wing, 3);
+  ctx.strokeStyle = c.wingLine;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(-8, -2);
@@ -243,11 +294,11 @@ function featherWing(ctx: CanvasRenderingContext2D, flapA: number, scale = 1) {
   ctx.restore();
 }
 
-function cupidBack(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
+function cupidBack(ctx: CanvasRenderingContext2D, a: VehicleAnim, c: CupidPal) {
   // alas
   ctx.save();
   ctx.translate(-26, -10);
-  featherWing(ctx, -0.35 + Math.sin(a.t * 5) * 0.2 - a.pulse * 0.5, 1.15);
+  featherWing(ctx, -0.35 + Math.sin(a.t * 5) * 0.2 - a.pulse * 0.5, 1.15, c);
   ctx.restore();
   // carcaj con flechas
   ctx.save();
@@ -262,13 +313,13 @@ function cupidBack(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
     ctx.stroke();
     drawHeart(ctx, i * 7, -25, 5, COLORS.rose, 1.6);
   }
-  rrect(ctx, -9, -2, 18, 22, 4, COLORS.goldDark, 2.6);
+  rrect(ctx, -9, -2, 18, 22, 4, c.quiver, 2.6);
   ctx.restore();
 }
 
-function cupidFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
-  // rueda dorada (debajo de la concha)
-  circle(ctx, -2, 31, 13, COLORS.gold, 3);
+function cupidFront(ctx: CanvasRenderingContext2D, a: VehicleAnim, c: CupidPal) {
+  // rueda (debajo de la concha)
+  circle(ctx, -2, 31, 13, c.wheel, 3);
   ctx.save();
   ctx.translate(-2, 31);
   ctx.rotate(a.wheel);
@@ -292,11 +343,11 @@ function cupidFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
   ctx.quadraticCurveTo(56, -16, 44, -22);
   ctx.quadraticCurveTo(44, -8, 32, 2);
   ctx.closePath();
-  ink(ctx, '#9bd7ff', 3.2);
+  ink(ctx, c.shell, 3.2);
   // nervaduras
   ctx.save();
   ctx.clip();
-  ctx.strokeStyle = '#6cb7ee';
+  ctx.strokeStyle = c.rib;
   ctx.lineWidth = 2.2;
   for (let i = -3; i <= 3; i++) {
     ctx.beginPath();
@@ -316,9 +367,9 @@ function cupidFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
   ctx.lineCap = 'round';
   ctx.stroke();
   ctx.lineWidth = 3.2;
-  ctx.strokeStyle = COLORS.gold;
+  ctx.strokeStyle = c.edge;
   ctx.stroke();
-  drawHeart(ctx, 6, 18, 9, COLORS.rose, 2.4);
+  drawHeart(ctx, 6, 18, 9, c.heart, 2.4);
   // arco de Cupido en el frente
   ctx.beginPath();
   ctx.arc(46, -10, 11, -Math.PI * 0.5, Math.PI * 0.5, false);
@@ -326,7 +377,7 @@ function cupidFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
   ctx.strokeStyle = COLORS.ink;
   ctx.stroke();
   ctx.lineWidth = 2.8;
-  ctx.strokeStyle = COLORS.gold;
+  ctx.strokeStyle = c.edge;
   ctx.stroke();
   ctx.strokeStyle = COLORS.ink;
   ctx.lineWidth = 1.4;
@@ -346,21 +397,21 @@ function cupidFront(ctx: CanvasRenderingContext2D, a: VehicleAnim) {
 /* API                                                                 */
 /* ------------------------------------------------------------------ */
 
-export function drawVehicleBack(ctx: CanvasRenderingContext2D, kind: VehicleKind, x: number, y: number, a: VehicleAnim) {
+export function drawVehicleBack(ctx: CanvasRenderingContext2D, kind: VehicleKind, x: number, y: number, a: VehicleAnim, skin = 'classic') {
   ctx.save();
   ctx.translate(x, y);
-  if (kind === 'swan') swanBack(ctx, a);
-  else if (kind === 'limo') limoBack(ctx, a);
-  else cupidBack(ctx, a);
+  if (kind === 'swan') swanBack(ctx, a, SWAN_SKINS[skin] ?? SWAN_SKINS.classic);
+  else if (kind === 'limo') limoBack(ctx, a, LIMO_SKINS[skin] ?? LIMO_SKINS.classic);
+  else cupidBack(ctx, a, CUPID_SKINS[skin] ?? CUPID_SKINS.classic);
   ctx.restore();
 }
 
-export function drawVehicleFront(ctx: CanvasRenderingContext2D, kind: VehicleKind, x: number, y: number, a: VehicleAnim) {
+export function drawVehicleFront(ctx: CanvasRenderingContext2D, kind: VehicleKind, x: number, y: number, a: VehicleAnim, skin = 'classic') {
   ctx.save();
   ctx.translate(x, y);
-  if (kind === 'swan') swanFront(ctx, a);
-  else if (kind === 'limo') limoFront(ctx, a);
-  else cupidFront(ctx, a);
+  if (kind === 'swan') swanFront(ctx, a, SWAN_SKINS[skin] ?? SWAN_SKINS.classic);
+  else if (kind === 'limo') limoFront(ctx, a, LIMO_SKINS[skin] ?? LIMO_SKINS.classic);
+  else cupidFront(ctx, a, CUPID_SKINS[skin] ?? CUPID_SKINS.classic);
   ctx.restore();
 }
 
@@ -372,7 +423,7 @@ export function vehicleTilt(kind: VehicleKind, a: VehicleAnim): number {
 }
 
 /** Vehículo solo (sin novio): para el HUD y el garaje. `size` = ancho aproximado en px */
-export function drawVehicleIcon(ctx: CanvasRenderingContext2D, kind: VehicleKind, x: number, y: number, size: number, t = 0) {
+export function drawVehicleIcon(ctx: CanvasRenderingContext2D, kind: VehicleKind, x: number, y: number, size: number, t = 0, skin = 'classic') {
   const base = kind === 'limo' ? 116 : 96;
   const k = size / base;
   const a: VehicleAnim = { t, pulse: 0, wheel: t * 6, vy: 0, grounded: true };
@@ -380,8 +431,8 @@ export function drawVehicleIcon(ctx: CanvasRenderingContext2D, kind: VehicleKind
   ctx.translate(x, y);
   ctx.scale(k, k);
   ctx.translate(0, kind === 'swan' ? -6 : kind === 'limo' ? -12 : -9);
-  drawVehicleBack(ctx, kind, 0, 0, a);
-  drawVehicleFront(ctx, kind, 0, 0, a);
+  drawVehicleBack(ctx, kind, 0, 0, a, skin);
+  drawVehicleFront(ctx, kind, 0, 0, a, skin);
   ctx.restore();
 }
 
